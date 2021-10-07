@@ -1,0 +1,4 @@
+enc_preproc_outputs/
+encoder/saved_models/
+venvsingerenc/
+train-clean-100/
