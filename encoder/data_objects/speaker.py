@@ -12,15 +12,10 @@ class Speaker:
         self.utterance_cycler = None
         
     def _load_utterances(self):
-        # Utterance stores mel and wav paths, but does not make them npy objects until random_partial() is called
+        """ Utterance stores mel and wav paths, but does not make them npy objects until random_partial() is called"""
         spkr_uttrs_list = [f.name[:-4] for f in self.root.glob('*.npy')]
         self.utterances = [Utterance(self.root.joinpath(f+'.npy'), f+'.wav') for f in spkr_uttrs_list]
-        # print("utterance length is: ", len(self.utterances))
-        # # _sources.txt files give you a csv format of mel filename and wav path it originated from for each utterance
-        # with self.root.joinpath("_sources.txt").open("r") as sources_file:
-        #     sources = [l.split(",") for l in sources_file]
-        # sources = {frames_fname: wave_fpath for frames_fname, wave_fpath in sources}
-        # self.utterances = [Utterance(self.root.joinpath(f), w) for f, w in sources.items()]
+
         try:
             self.utterance_cycler = RandomCycler(self.utterances)
         except:
@@ -42,8 +37,8 @@ class Speaker:
             self._load_utterances()
 
         utterances = self.utterance_cycler.sample(count)
-        # Utterance random_partial returns: (splice of numpy, (start/end values))
+        """Utterance random_partial returns: (splice of numpy, (start/end values))"""
         a = [(u,) + u.random_partial(n_frames) for u in utterances]
 
-        # a is a list (uttr objects, spliced uttr_features, start/end coords), size of count
+        """ a is a list of tuples (uttr objects, spliced uttr_features, start/end coords), size of count"""
         return a

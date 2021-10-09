@@ -1,7 +1,7 @@
 from utils.argutils import print_args
 from encoder.train import train
 from pathlib import Path
-import argparse, pdb
+import argparse, os, pdb
 
 
 if __name__ == "__main__":
@@ -37,10 +37,14 @@ if __name__ == "__main__":
     parser.add_argument("--no_visdom", action="store_true", help= \
         "Disable visdom.")
     parser.add_argument("-stp", "--stop_at_step", type=int, default=1000)
+    parser.add_argument("-n", "--notes", type=str, default='', help= \
+        "Add these notes which will be saved to a config text file that gets saved in your saved directory")
     args = parser.parse_args()
     
     # Process the arguments
     args.models_dir.mkdir(exist_ok=True)
+    args.this_model_dir = os.path.join(args.models_dir, args.run_id)
+    args.string_sum = str(args)
     
     # Run the training
     print_args(args, parser)

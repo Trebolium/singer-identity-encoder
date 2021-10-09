@@ -5,23 +5,28 @@ from encoder.data_objects.speaker import Speaker
 from encoder.params_data import partials_n_frames
 from torch.utils.data import Dataset, DataLoader
 from pathlib import Path
+#from singer-identity-encoder.encoder.data_objects import speaker
 
-# TODO: improve with a pool of speakers for data efficiency
-
+# this class only collects and structures the metadata about speakers but DOESN'T read the actual data itself
 class SpeakerVerificationDataset(Dataset):
     def __init__(self, datasets_root: Path):
         self.root = datasets_root
-        speaker_dirs = [f for f in self.root.glob("*") if f.is_dir()]
+        speaker_dirs = [f for f in self.root.glob("*") if f.is_dir() and not str(f).startswith('.')]
         if len(speaker_dirs) == 0:
             raise Exception("No speakers found. Make sure you are pointing to the directory "
                             "containing all preprocessed speaker directories.")
-        self.speakers = [Speaker(speaker_dir) for speaker_dir in speaker_dirs if not '.' in speaker_dir.name]
-
+        self.speakers = [(Speaker(speaker_dir), i) for i, speaker_dir in enumerate(speaker_dirs)]
+        self.num_speakers = len(self.speakers)
         self.speaker_cycler = RandomCycler(self.speakers)
 
     def __len__(self):
         return int(1e10) #why
+        # return self.num_speakers
         
+#    def __getitem__(self, index):
+#        """Ignoring the speaker_cycler method, we standardly collect information the old-fashioned way"""
+#        return (self.speakers[index], index)
+
     def __getitem__(self, index):
         """ speaker_cycler chooses a random speaker from dataset (seemingly ignoring the index variable)
         The speaker_cycler assures that this randomness has some logical restrainsts
@@ -56,7 +61,9 @@ class SpeakerVerificationDataLoader(DataLoader):
             worker_init_fn=worker_init_fn
         )
 
-    def collate(self, speakers):
-        # makes a SpeakerBatch object
-        return SpeakerBatch(speakers, self.utterances_per_speaker, partials_n_frames) 
+    def collate(self, speaker_data):
+        """makes a SpeakerBatch object, which DOES extract the data itself
+        This SpeakerBatch object gets extracted for every next batch thats drawn from the dataloader
+        and its .data attribute is used"""
+        return SpeakerBatch(speaker_data, self.utterances_per_speaker, partials_n_frames) 
     

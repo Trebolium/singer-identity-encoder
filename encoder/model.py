@@ -6,11 +6,11 @@ from torch.nn.utils import clip_grad_norm_
 from scipy.optimize import brentq
 from torch import nn
 import numpy as np
-import torch
+import torch, pdb
 
 
 class SpeakerEncoder(nn.Module):
-    def __init__(self, device, loss_device):
+    def __init__(self, device, loss_device, class_num):
         super().__init__()
         self.loss_device = loss_device
         
@@ -23,6 +23,12 @@ class SpeakerEncoder(nn.Module):
                                 out_features=model_embedding_size).to(device)
         self.relu = torch.nn.ReLU().to(device)
         
+        self.class_layer = nn.Linear(model_embedding_size, class_num).to(device)
+            # ,nn.Dropout(self.dropout)
+            # ,nn.BatchNorm1d(512)
+            # ,nn.ReLU()
+            
+        
         # Cosine similarity scaling (with fixed initial parameter values)
         self.similarity_weight = nn.Parameter(torch.tensor([10.])).to(loss_device)
         self.similarity_bias = nn.Parameter(torch.tensor([-5.])).to(loss_device)
@@ -30,10 +36,11 @@ class SpeakerEncoder(nn.Module):
         # Loss
         self.loss_fn = nn.CrossEntropyLoss().to(loss_device)
         
-    def do_gradient_ops(self):
+    def do_gradient_ops(self, loss):
         # Gradient scale
-        self.similarity_weight.grad *= 0.01
-        self.similarity_bias.grad *= 0.01
+        if loss.is_cuda != True: # if not true, its going to be the 
+            self.similarity_weight.grad *= 0.01
+            self.similarity_bias.grad *= 0.01
             
         # Gradient clipping
         clip_grad_norm_(self.parameters(), 3, norm_type=2)
@@ -48,7 +55,7 @@ class SpeakerEncoder(nn.Module):
         batch_size, hidden_size). Will default to a tensor of zeros if None.
         :return: the embeddings as a tensor of shape (batch_size, embedding_size)
         """
-        # Pass the input through the LSTM layers and retrieve all outputs, the final hidden state
+        # Pass the input through the LSTM layers and retrieve all outuuuputs, the final hidden state
         # and the final cell state.
         out, (hidden, cell) = self.lstm(utterances, hidden_init)
         
@@ -57,8 +64,9 @@ class SpeakerEncoder(nn.Module):
         
         # L2-normalize it
         embeds = embeds_raw / (torch.norm(embeds_raw, dim=1, keepdim=True) + 1e-5)        
+        class_preds = self.class_layer(embeds)
 
-        return embeds
+        return embeds, class_preds
     
     def similarity_matrix(self, embeds):
         """
