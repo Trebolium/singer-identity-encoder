@@ -19,14 +19,12 @@ class SpeakerVerificationDataset(Dataset):
         self.num_speakers = len(self.speakers)
         self.speaker_cycler = RandomCycler(self.speakers)
 
-    def __len__(self):
-        return int(1e10) #why
-        # return self.num_speakers
-        
-#    def __getitem__(self, index):
-#        """Ignoring the speaker_cycler method, we standardly collect information the old-fashioned way"""
-#        return (self.speakers[index], index)
+    def num_voices(self):
+        return self.num_speakers
 
+    def __len__(self):
+        return int(1e10) # so that when iterating over the loader it has a (close to) infinite amount of steps to do 
+        
     def __getitem__(self, index):
         """ speaker_cycler chooses a random speaker from dataset (seemingly ignoring the index variable)
         The speaker_cycler assures that this randomness has some logical restrainsts

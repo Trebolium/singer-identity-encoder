@@ -1,4 +1,6 @@
 import numpy as np
+import math, pdb
+from sklearn.preprocessing import normalize
 
 
 class Utterance:
@@ -18,9 +20,16 @@ class Utterance:
         partial utterance in the complete utterance.
         """
         frames = self.get_frames()
-        if frames.shape[0] == n_frames:
-            start = 0
-        else:
+        
+        # frames = (frames - frames.mean()) / frames.std() # normalise from 0-1
+        # pdb.set_trace()
+        if frames.shape[0] > n_frames:
             start = np.random.randint(0, frames.shape[0] - n_frames)
+        else:
+            # new section - pad the sides to make up for chunks thata are too small
+            start = 0
+            pad_size = math.ceil(n_frames - frames.shape[0]/2)
+            pad_vec = np.full((pad_size, frames.shape[1]), np.min(frames))
+            frames = np.concatenate((pad_vec, frames, pad_vec))
         end = start + n_frames
         return frames[start:end], (start, end)

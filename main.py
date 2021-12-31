@@ -3,6 +3,8 @@ from encoder.solver import SingerIdentityEncoder
 from pathlib import Path
 import argparse, os, pdb
 
+def str2bool(v):
+    return v.lower() in ('true')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -10,9 +12,10 @@ if __name__ == "__main__":
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     
-    parser.add_argument("-r", "--run_id", type=str, default='testrun', help= \
-        "Name for this model instance. If a model state from the same run ID was previously "
-        "saved, the training will restart from there. Pass -f to overwrite saved states and "
+    parser.add_argument("-r", "--run_id", type=str, default='testRuns', help= \
+        "Name for this model instance. If there is already a model named same as this in models_dir, then it uses the params from that")
+    parser.add_argument("-nr", "--new_run_id", type=str, default=None, help= \
+        "Name for new model directory. If model is None, error will occur"
         "restart from scratch.")
     parser.add_argument("-d", "--clean_data_root", type=Path, default="/homes/bdoc3/my_data/spmel_data/vocalSet_subset_unnormed/train", help= \
         "Path to the output directory of encoder_preprocess.py. If you left the default "
@@ -26,13 +29,13 @@ if __name__ == "__main__":
         "Number of steps between updates of the model on the disk. Set to 0 to never save the "
         "model.")
     parser.add_argument("-t", "--train_iters", type=int, default=200)
-    parser.add_argument("-v", "--val_iters", type=int, default=50)
-    parser.add_argument("-b", "--backup_every", type=int, default=7500, help= \
-        "Number of steps between backups of the model. Set to 0 to never make backups of the "
-        "model.")
-    parser.add_argument("-f", "--force_restart", action="store_true", help= \
+    parser.add_argument("-v", "--val_iters", type=int, default=10)
+    # parser.add_argument("-b", "--backup_every", type=int, default=7500, help= \
+        # "Number of steps between backups of the model. Set to 0 to never make backups of the "
+        # "model.")
+    parser.add_argument("-c", "--which_cuda", type=int, default=0, help= \
         "Do not load any saved model.")
-    parser.add_argument("-l", "--use_loss", type=str, default='ge2e')
+    parser.add_argument("-l", "--use_loss", type=str, default='both')
     parser.add_argument("-stp", "--stop_at_step", type=int, default=1000)
     parser.add_argument("-n", "--notes", type=str, default='', help= \
         "Add these notes which will be saved to a config text file that gets saved in your saved directory")
@@ -40,7 +43,6 @@ if __name__ == "__main__":
     
     # Process the arguments
     config.models_dir.mkdir(exist_ok=True)
-    config.this_model_dir = os.path.join(config.models_dir, config.run_id)
     config.string_sum = str(config)
     print_args(config, parser)
 

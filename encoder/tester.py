@@ -8,10 +8,13 @@ def collater(dataset, loader, utterances_per_speaker, n_frames):
     # warning: If using RandomCycler, dataset will be infinite
     for i, (speaker, idx) in enumerate(dataset):
         try:
-            spkr_uttrs_list = [speaker.name[:-4] for f in speaker.root.glob('*.npy')]
+            spkr_uttrs_list = [str(f)[:-4] for f in speaker.root.glob('*.npy')]
             utterances = [Utterance(speaker.root.joinpath(f+'.npy'), f+'.wav') for f in spkr_uttrs_list]
-            print(f"utterance {i} length is: {len(utterances)}")
+            print(f"Number of utterances for speaker {speaker.name} is: {len(utterances)}")
+            for uttr in utterances:
+                print(uttr.random_partial(n_frames)[0].shape)
             utterance_cycler = RandomCycler(utterances)
+            pdb.set_trace()
         except:
             pdb.set_trace()
     speakers_data = [dataset[2], dataset[4], dataset[7]]

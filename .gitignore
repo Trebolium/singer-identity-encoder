@@ -3,3 +3,4 @@ encoder/saved_models/
 venvsingerenc/
 train-clean-100/
 testRuns/
+*.pyc
