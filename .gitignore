@@ -1,3 +1,4 @@
+testRuns/
 enc_preproc_outputs/
 notebooks/
 encoder/saved_models/
@@ -6,3 +7,4 @@ train-clean-100/
 runs/
 *pycache__/
 *.pyc
+*.sw*
