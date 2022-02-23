@@ -1,6 +1,8 @@
 enc_preproc_outputs/
+notebooks/
 encoder/saved_models/
 venvsingerenc/
 train-clean-100/
-testRuns/
+runs/
+*pycache__/
 *.pyc

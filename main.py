@@ -1,52 +1,59 @@
-from utils.argutils import print_args
-from encoder.solver import SingerIdentityEncoder
+from utils import print_args
+from solver import SingerIdentityEncoder
 from pathlib import Path
-import argparse, os, pdb
+import argparse, pdb
 
 def str2bool(v):
     return v.lower() in ('true')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Trains the speaker encoder. You must have run encoder_preprocess.py first.",
+        description="Processes a set of arguments to run the singer identity encoder model.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     
-    parser.add_argument("-r", "--run_id", type=str, default='testRuns', help= \
-        "Name for this model instance. If there is already a model named same as this in models_dir, then it uses the params from that")
-    parser.add_argument("-nr", "--new_run_id", type=str, default=None, help= \
-        "Name for new model directory. If model is None, error will occur"
-        "restart from scratch.")
-    parser.add_argument("-d", "--clean_data_root", type=Path, default="/homes/bdoc3/my_data/spmel_data/vocalSet_subset_unnormed/train", help= \
-        "Path to the output directory of encoder_preprocess.py. If you left the default "
-        "output directory when preprocessing, it should be <datasets_root>/SV2TTS/encoder/.")
-    parser.add_argument("-m", "--models_dir", type=Path, default="encoder/saved_models/", help=\
-        "Path to the output directory that will contain the saved model weights, as well as "
-        "backups of those weights and plots generated during training.")
-    parser.add_argument("-tb", "--tb_every", type=int, default=10, help= \
-        "Number of steps between updates of the loss and the plots.")
-    parser.add_argument("-s", "--save_every", type=int, default=500, help= \
-        "Number of steps between updates of the model on the disk. Set to 0 to never save the "
-        "model.")
-    parser.add_argument("-t", "--train_iters", type=int, default=200)
-    parser.add_argument("-v", "--val_iters", type=int, default=10)
-    # parser.add_argument("-b", "--backup_every", type=int, default=7500, help= \
-        # "Number of steps between backups of the model. Set to 0 to never make backups of the "
-        # "model.")
-    parser.add_argument("-c", "--which_cuda", type=int, default=0, help= \
-        "Do not load any saved model.")
-    parser.add_argument("-l", "--use_loss", type=str, default='both')
-    parser.add_argument("-stp", "--stop_at_step", type=int, default=1000)
-    parser.add_argument("-n", "--notes", type=str, default='', help= \
-        "Add these notes which will be saved to a config text file that gets saved in your saved directory")
+    # path specifications    
+    parser.add_argument("-rid", "--run_id", type=str, default='testRuns', help= "Name of destination model directory and associated files.\
+        If --new_run_id specified,this becomes the name of the model directory from which ckpt is extracted for pretrained weights")
+    parser.add_argument("-nrid", "--new_run_id", type=str, default=None, help= \
+        "If not None, this becomes the name of the new destination model directory and associated files, trained using ckpt from model specified in -run_id.")
+    parser.add_argument("-fd", "--feature_dir", type=Path, default="./example_dataset", help= \
+        "Path to directory of to feature dataset, which must contain train, val directories and feat_params.yaml file")
+    parser.add_argument("-md", "--models_dir", type=Path, default="/homes/bdoc3/my_data/autovc_models/singer_identity_encoder/", help=\
+        "Define the parent directory for all model directories")
+    
+    #schedulers
+    parser.add_argument("-te", "--tb_every", type=int, default=10, help= \
+        "Number of steps between updates of the loss and the plots for in tensorboard.")
+    parser.add_argument("-se", "--save_every", type=int, default=1000, help= \
+        "Number of steps between updates of the model on the disk. Overwritten at every save")
+    parser.add_argument("-ti", "--train_iters", type=int, default=200, help= "Number of training steps to take before passing back to validation steps")
+    parser.add_argument("-vi", "--val_iters", type=int, default=10, help= "Number of validation steps to take before passing back to training steps")
+    parser.add_argument("-p", "--patience", type=int, default=25, help= "Determines how long EarlyStopping waits before ceasing training")
+    parser.add_argument("-stp", "--stop_at_step", type=int, default=100000, help= "Upper limit for number of steps before ceasing training")
+
+    #framework setup
+    parser.add_argument("-lri", "--learning_rate_init", type=int, default=1e-4, help= "Choose which cuda driver to use.")
+    parser.add_argument("-spb", "--speakers_per_batch", type=int, default=8, help= "Choose which cuda driver to use.")
+    parser.add_argument("-ups", "--utterances_per_speaker", type=int, default=10, help= "Choose which cuda driver to use.")
+    parser.add_argument("-wc", "--which_cuda", type=int, default=0, help= "Choose which cuda driver to use.")
+    parser.add_argument("-ul", "--use_loss", type=str, default='ge2e', help= "Choose mode for determining loss value")
+
+    #model setup
+    parser.add_argument("-hs", "--model_hidden_size", type=int, default=256, help= "Number of dimensions in hidden layer.")
+    parser.add_argument("-es", "--model_embedding_size", type=int, default=256, help= "Model embedding size.")
+    parser.add_argument("-nl", "--num_layers", type=int, default=3, help= "Number of LSTM stacks in model.")
+    parser.add_argument("-nt", "--num_timesteps", type=int, default=307, help= "Number of timesteps used in feature example fed to network")
+
+    parser.add_argument("-n", "--notes", type=str, default='', help= "Add these notes which will be saved to a config text file that gets saved in your saved directory")
     config = parser.parse_args()
     
-    # Process the arguments
+    # Process arguments
     config.models_dir.mkdir(exist_ok=True)
     config.string_sum = str(config)
     print_args(config, parser)
 
+    # initiate and train model till finish
     encoder = SingerIdentityEncoder(config)
-
     encoder.train()
     
