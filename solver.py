@@ -1,7 +1,7 @@
 from data_objects import SpeakerVerificationDataLoader, SpeakerVerificationDataset
 from model import SpeakerEncoder
 from pathlib import Path
-import torch, os, time, datetime, sys, yaml, pdb
+import torch, os, time, datetime, sys, yaml, math, pdb
 from torch import nn
 from tester import collater
 from torch.utils.tensorboard import SummaryWriter
@@ -35,6 +35,7 @@ class SingerIdentityEncoder:
         self.config = config
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.loss_device = torch.device("cpu")
+        self.prev_lowest_ge2e = math.inf
 
         #Load feature parameters from dataset yaml
         with open(os.path.join(self.config.feature_dir, 'feat_params.yaml')) as File:
@@ -128,7 +129,7 @@ class SingerIdentityEncoder:
             # scheduled functions: print progress and metrics, save model
             if should_print:
                 self.print_monitor(step, mode)
-            self.periodic_ops(step)
+            self.periodic_ops(step, ge2e_loss)
             if finish_iters:
                 self.average_print_metrics(step, mode) 
                 break
@@ -149,7 +150,7 @@ class SingerIdentityEncoder:
             print(f'Steps {step}/{self.config.stop_at_step}, Accuracy: {accuracy}, GE2E loss: {ge2e_loss}, Pred loss: {pred_loss}, Total loss: {round(both_loss, 4)}')
             if self.EarlyStopping.check(ge2e_loss):
                 print(f'Early stopping employed.')
-                self.periodic_ops(self.config.stop_at_step+1)
+                self.periodic_ops(self.config.stop_at_step+1, ge2e_loss)
                 exit(0)
         print()
         self.writer.add_scalar(f'Accuracy/{mode}', accuracy, step)
@@ -223,14 +224,14 @@ class SingerIdentityEncoder:
 
  
     # check number of steps in training cycle to determine if saving model and flush TB
-    def periodic_ops(self, step):
+    def periodic_ops(self, step, ge2e_loss):
 
         if step != 0:
             # save new tensorboard data to file
             if step % self.config.tb_every == 0:
                 self.writer.flush()
             # Overwrite the latest version of the model
-            if step % self.config.save_every == 0 or step >= self.config.stop_at_step: 
+            if ge2e_loss < self.prev_lowest_ge2e or step >= self.config.stop_at_step: 
                 torch.save(
                     {
                     "step": step,
@@ -239,7 +240,7 @@ class SingerIdentityEncoder:
                     },
                     os.path.join(self.this_model_dir, 'saved_model.pt'))
                 print(f"Saving the model (step {step}) at time {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))}")
-
+                self.prev_lowest_ge2e = ge2e_loss
 
     # print metric info in human-readable format
     def print_monitor(self, step, mode):
