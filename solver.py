@@ -14,6 +14,7 @@ def sync(device):
         torch.cuda.synchronize(device)
 
 """
+SIE:
 SingerIdentityEncoder is an object that initiates a model based on user inputs
 The SIE's train method is implemented which in turn calls its own methods hierarchy:
     train
