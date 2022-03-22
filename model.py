@@ -11,7 +11,6 @@ class SpeakerEncoder(nn.Module):
     def __init__(self, device, loss_device, class_num, num_feats, model_hidden_size, model_embedding_size, model_num_layers):
         super().__init__()
         self.loss_device = loss_device
-        
         # Network defition
         self.lstm = nn.LSTM(input_size=num_feats,
                             hidden_size=model_hidden_size, 

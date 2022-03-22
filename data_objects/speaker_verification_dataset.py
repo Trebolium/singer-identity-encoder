@@ -10,14 +10,14 @@ from pathlib import Path
 
 # collects paths to utterances of speakers - does not collect the data itself
 class SpeakerVerificationDataset(Dataset):
-    def __init__(self, datasets_root: Path, partials_n_frames):
-        self.partials_n_frames = partials_n_frames
+    def __init__(self, datasets_root, config, feat_params):
+
         self.root = datasets_root
         speaker_dirs = [f for f in self.root.glob("*") if f.is_dir() and not str(f).startswith('.')]
         if len(speaker_dirs) == 0:
             raise Exception("No speakers found. Make sure you are pointing to the directory "
                             "containing all preprocessed speaker directories.")
-        self.speakers = [(Speaker(speaker_dir), i) for i, speaker_dir in enumerate(speaker_dirs)]
+        self.speakers = [(Speaker(speaker_dir, config, feat_params), i) for i, speaker_dir in enumerate(speaker_dirs)]
         self.num_speakers = len(self.speakers)
         self.speaker_cycler = RandomCycler(self.speakers)
 
@@ -64,6 +64,9 @@ class SpeakerVerificationDataLoader(DataLoader):
         )
 
     def collate(self, speaker_data):
-        """This function used only when batch is called from dataloader. SpeakerBatch gets data from paths"""
-        return SpeakerBatch(speaker_data, self.utterances_per_speaker, self.partials_n_frames, self.num_feats) 
+        """This function used only when batch is called from dataloader.
+        speaker_data is a batch of Speaker objects which contain paths and 
+        """
+        # print('Calling speakerbatch')
+        return SpeakerBatch(speaker_data, self.utterances_per_speaker, self.partials_n_frames, self.num_feats)
     

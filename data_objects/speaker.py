@@ -1,22 +1,29 @@
 from data_objects.random_cycler import RandomCycler
 from data_objects.utterance import Utterance
 from pathlib import Path
+import pdb
 
 """Minimally altered code from https://github.com/Trebolium/Real-Time-Voice-Cloning/tree/master/encoder/data_objects"""
 
 
 # Contains the set of utterances of a single speaker
 class Speaker:
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, config, feat_params):
         self.root = root
         self.name = root.name
         self.utterances = None
         self.utterance_cycler = None
+        self.config = config
+        self.feat_params = feat_params
         
-    def _load_utterances(self, num_feats):
+    def _load_utterances(self):
+        if self.config.use_audio == True:
+            ext = '.wav'
+        else:
+            ext = '.npy'
         """ Utterance stores mel and wav paths, but does not make them npy objects until random_partial() is called"""
-        spkr_uttrs_list = [f.name[:-4] for f in self.root.glob('*.npy')]
-        self.utterances = [Utterance(self.root.joinpath(f+'.npy'), f+'.wav') for f in spkr_uttrs_list]
+        spkr_uttrs_list = [f.name[:-4] for f in self.root.glob('*' +ext)]
+        self.utterances = [Utterance(self.root.joinpath(f+ext), f+ext, self.config, self.feat_params) for f in spkr_uttrs_list]
         self.utterance_cycler = RandomCycler(self.utterances)
       
     def random_partial(self, count, n_frames, num_feats):
@@ -33,11 +40,13 @@ class Speaker:
         utterance with regard to the complete utterance.
         """
         if self.utterances is None:
-            self._load_utterances(num_feats)
+            # print(f'loading utterances for speak {self.name}')
+            self._load_utterances()
 
         utterances = self.utterance_cycler.sample(count)
         """Utterance random__partial returns: (splice of numpy, (start/end values))"""
         a = [(u,) + u.random_partial(n_frames, num_feats) for u in utterances]
 
+        # print(f'{len(a)} utterances for speaker {self.name} collected')
         """ a is a list of tuples (uttr objects, spliced uttr_features, start/end coords), size of count"""
         return a

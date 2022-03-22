@@ -44,16 +44,45 @@ if __name__ == "__main__":
     parser.add_argument("-es", "--model_embedding_size", type=int, default=256, help= "Model embedding size.")
     parser.add_argument("-nl", "--num_layers", type=int, default=3, help= "Number of LSTM stacks in model.")
     parser.add_argument("-nt", "--num_timesteps", type=int, default=307, help= "Number of timesteps used in feature example fed to network")
+    #feat params 
+    parser.add_argument('-ua','--use_audio', type=str2bool, default=True)
+    parser.add_argument('-uw','--use_wav2world', type=str2bool, default=False)
+    parser.add_argument('-fe','--f0_extract', default='harvest', type=str)
+    parser.add_argument('-drm','--dim_red_method', default='code-h', type=str)
+    parser.add_argument('-fdm','--frame_dur_ms', default=10, type=float)    
+    parser.add_argument('-nf','--num_feats', default=40, type=int)
+    parser.add_argument('-naf','--num_aper_feats', default=4, type=int)
+    parser.add_argument('-sr','--sampling_rate', default=16000, type=int)
+    parser.add_argument('-fft','--fft_size', default=None, type=int)
+    parser.add_argument('--fmin', default=50, type=int) #50 chosen by me, 71 chosen by default params   
+    parser.add_argument('--fmax', default=1100, type=int) #1100 chosen by me, 800 chosen by default params 
 
     parser.add_argument("-n", "--notes", type=str, default='', help= "Add these notes which will be saved to a config text file that gets saved in your saved directory")
+    
     config = parser.parse_args()
     
+    if config.use_audio ==True:
+        feat_params = feat_params = {"use_wav2world":config.use_wav2world,
+                                "f0_extract":config.f0_extract,
+                                "dim_red_method":config.dim_red_method,
+                                "fmin":config.fmin,
+                                "fmax":config.fmax,
+                                'num_feats':config.num_feats,
+                                'num_aper_feats':4,
+                                'frame_dur_ms':config.frame_dur_ms,
+                                'sr':config.sampling_rate,
+                                'fft_size':config.fft_size}
+        
+
     # Process arguments
     config.models_dir.mkdir(exist_ok=True)
     config.string_sum = str(config)
     print_args(config, parser)
 
     # initiate and train model till finish
-    encoder = SingerIdentityEncoder(config)
+    if config.use_audio ==True:
+        encoder = SingerIdentityEncoder(config, feat_params)
+    else:
+        encoder = SingerIdentityEncoder(config)
     encoder.train()
     

@@ -28,27 +28,28 @@ The SIE's train method is implemented which in turn calls its own methods hierar
 """
 class SingerIdentityEncoder:
 
-    def __init__(self, config) -> None:
+    def __init__(self, config, feat_params=None) -> None:
         #Initialise configurations
         self.print_freq = 5
         self.train_current_step = 0
         self.val_current_step = 0
         self.config = config
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device(f'cuda:{self.config.which_cuda}' if torch.cuda.is_available() else "cpu")
         self.loss_device = torch.device("cpu")
         self.prev_lowest_ge2e = math.inf
 
         #Load feature parameters from dataset yaml
-        with open(os.path.join(self.config.feature_dir, 'feat_params.yaml')) as File:
-            feat_params = yaml.load(File, Loader=yaml.FullLoader)
+        if feat_params == None:
+            with open(os.path.join(self.config.feature_dir, 'feat_params.yaml')) as File:
+                feat_params = yaml.load(File, Loader=yaml.FullLoader)
+        self.feat_params = feat_params
         self.num_feats = feat_params['num_feats']
-
         #Create dataset and dataloader for val, train subsets
         self.train_dataset = SpeakerVerificationDataset(config.feature_dir.joinpath('train'),
-            config.num_timesteps
+            config, feat_params
         )
         self.val_dataset = SpeakerVerificationDataset(config.feature_dir.joinpath('val'),
-            config.num_timesteps
+            config, feat_params
         )
         self.train_loader = SpeakerVerificationDataLoader(
             self.train_dataset,
@@ -56,7 +57,7 @@ class SingerIdentityEncoder:
             config.utterances_per_speaker,
             config.num_timesteps,
             self.num_feats,
-            num_workers=8,
+            num_workers=32,
         )
         self.val_loader = SpeakerVerificationDataLoader(
             self.val_dataset,
@@ -64,7 +65,7 @@ class SingerIdentityEncoder:
             config.utterances_per_speaker,
             config.num_timesteps,
             self.num_feats,
-            num_workers=8,
+            num_workers=32,
         )
 
         # Create the model and the optimizer
@@ -108,6 +109,7 @@ class SingerIdentityEncoder:
         #Infinite training loop (as loader is infinite) until break
         print(f'---{mode.upper()}---')
         for step, speaker_batch in enumerate(loader, initial_iter_step+1):
+            # print(time.time() - self.start_time)
             finish_iters = (step != 0 and step % (initial_iter_step + self.mode_iters[mode]) == 0)
             should_print = (step != 0 and step % self.print_freq == 0)
             x_data_npy, y_data_npy = speaker_batch.data[0], speaker_batch.data[1]
@@ -260,4 +262,4 @@ class SingerIdentityEncoder:
 
     # method for testing the computation of feature and batches without multiprocessing for debugging
     def tester(self):
-        collater(self.train_dataset, self.config.utterances_per_speaker, self.config.num_timesteps, self.num_feats)    
+        collater(self.train_dataset, self.config.utterances_per_speaker, self.config.num_timesteps, self.num_feats, self.config, self.feat_params)    

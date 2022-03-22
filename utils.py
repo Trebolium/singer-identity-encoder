@@ -1,6 +1,12 @@
 from pathlib import Path
-import argparse
+import argparse, sys, random
 import numpy as np
+import pyworld as pw
+import pdb
+
+sys.path.insert(1, '/homes/bdoc3/my_utils')
+from audio.worldvocoder import code_harmonic, sp_to_mfsc, freq_to_vuv_midi
+
 
 _type_priorities = [    # In decreasing order
     Path,
@@ -55,3 +61,47 @@ class EarlyStopping():
                 return True
             else:
                 return False
+
+def process_data(y, feat_params, config):
+    # try:
+    if config.use_wav2world:
+        feats=pw.wav2world(y, feat_params['sr'],frame_period=feat_params['frame_dur_ms'])
+        harm = feats[1]
+        aper = feats[2]
+        refined_f0 = feats[0]
+    else:
+        if config.f0_extract == 'harvest':
+            f0, t_stamp = pw.harvest(y, feat_params['sr'], feat_params['fmin'], feat_params['fmax'], feat_params['frame_dur_ms'])
+        elif config.f0_extract =='dio':
+            f0, t_stamp = pw.dio(y, feat_params['sr'], feat_params['fmin'], feat_params['fmax'], frame_period = feat_params['frame_dur_ms'])
+        refined_f0 = pw.stonemask(y, f0, t_stamp, feat_params['sr'])
+        harm = pw.cheaptrick(y, refined_f0, t_stamp, feat_params['sr'], f0_floor=feat_params['fmin'])
+        aper = pw.d4c(y, refined_f0, t_stamp, feat_params['sr'])
+    refined_f0 = freq_to_vuv_midi(refined_f0) # <<< this can be done at training time
+    # except:
+    #     print('issue with world feature generating')
+    #     pdb.set_trace()
+        # print('basic harm/aper/f0 features extracted')
+    # try:
+    if config.dim_red_method == 'code-h':
+        harm = code_harmonic(harm, feat_params['num_feats'])
+        aper = code_harmonic(aper, feat_params['num_aper_feats'])
+    elif config.dim_red_method == 'world':
+        harm = pw.code_spectral_envelope(harm, feat_params['sr'], feat_params['num_feats'])
+        aper = pw.code_aperiodicity(aper, feat_params['num_feats'])
+    elif config.dim_red_method == 'chandna':
+        harm = 10*np.log10(harm) # previously, using these logs was a separate optional process to 'chandna'
+        aper = 10*np.log10(aper**2)
+        harm = sp_to_mfsc(harm, feat_params['num_feats'], 0.45)
+        aper =sp_to_mfsc(aper, feat_params['num_aper_feats'], 0.45)
+    else:
+        raise Exception("The value for dim_red_method was not recognised")
+        # print(f'{random.randint(0,100)}feature dims reduced')
+    # except:
+    #     print('issue with dim reduction')
+    #     pdb.set_trace()
+
+    out_feats=np.concatenate((harm,aper,refined_f0),axis=1)
+
+    return out_feats    
+
