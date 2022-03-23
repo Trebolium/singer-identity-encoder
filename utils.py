@@ -63,7 +63,7 @@ class EarlyStopping():
                 return False
 
 def process_data(y, feat_params, config):
-    # try:
+    
     if config.use_wav2world:
         feats=pw.wav2world(y, feat_params['sr'],frame_period=feat_params['frame_dur_ms'])
         harm = feats[1]
@@ -78,11 +78,7 @@ def process_data(y, feat_params, config):
         harm = pw.cheaptrick(y, refined_f0, t_stamp, feat_params['sr'], f0_floor=feat_params['fmin'])
         aper = pw.d4c(y, refined_f0, t_stamp, feat_params['sr'])
     refined_f0 = freq_to_vuv_midi(refined_f0) # <<< this can be done at training time
-    # except:
-    #     print('issue with world feature generating')
-    #     pdb.set_trace()
-        # print('basic harm/aper/f0 features extracted')
-    # try:
+
     if config.dim_red_method == 'code-h':
         harm = code_harmonic(harm, feat_params['num_feats'])
         aper = code_harmonic(aper, feat_params['num_aper_feats'])
@@ -96,12 +92,8 @@ def process_data(y, feat_params, config):
         aper =sp_to_mfsc(aper, feat_params['num_aper_feats'], 0.45)
     else:
         raise Exception("The value for dim_red_method was not recognised")
-        # print(f'{random.randint(0,100)}feature dims reduced')
-    # except:
-    #     print('issue with dim reduction')
-    #     pdb.set_trace()
 
     out_feats=np.concatenate((harm,aper,refined_f0),axis=1)
 
-    return out_feats    
+    return out_feats
 

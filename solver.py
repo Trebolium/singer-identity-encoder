@@ -43,7 +43,10 @@ class SingerIdentityEncoder:
             with open(os.path.join(self.config.feature_dir, 'feat_params.yaml')) as File:
                 feat_params = yaml.load(File, Loader=yaml.FullLoader)
         self.feat_params = feat_params
-        self.num_feats = feat_params['num_feats']
+        if config.use_aper_feats:
+            self.num_feats = feat_params['num_feats'] + feat_params['num_aper_feats']
+        else:
+            self.num_feats = feat_params['num_feats']
         #Create dataset and dataloader for val, train subsets
         self.train_dataset = SpeakerVerificationDataset(config.feature_dir.joinpath('train'),
             config, feat_params
@@ -57,7 +60,7 @@ class SingerIdentityEncoder:
             config.utterances_per_speaker,
             config.num_timesteps,
             self.num_feats,
-            num_workers=32,
+            num_workers=16,
         )
         self.val_loader = SpeakerVerificationDataLoader(
             self.val_dataset,
@@ -65,19 +68,10 @@ class SingerIdentityEncoder:
             config.utterances_per_speaker,
             config.num_timesteps,
             self.num_feats,
-            num_workers=32,
+            num_workers=16,
         )
 
-        # Create the model and the optimizer
-        self.model = SpeakerEncoder(self.device, self.loss_device,
-            self.train_dataset.num_voices(),
-            self.num_feats,
-            config.model_hidden_size,
-            config.model_embedding_size,
-            config.num_layers
-        )
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate_init)
-        self.this_model_dir, self.writer = self.config_model()
+        self.optimizer, self.model, self.this_model_dir, self.writer = self.config_model()
         self.backprop_losses = {'ge2e':0., 'pred':0., 'both':0., 'acc':0.}
         self.print_iter_metrics = {'ge2e':0., 'pred':0, 'both':0., 'acc':0.} 
         self.entire_iter_metrics = {'ge2e':0., 'pred':0., 'both':0., 'acc':0.} 
@@ -153,7 +147,7 @@ class SingerIdentityEncoder:
             print(f'Steps {step}/{self.config.stop_at_step}, Accuracy: {accuracy}, GE2E loss: {ge2e_loss}, Pred loss: {pred_loss}, Total loss: {round(both_loss, 4)}')
             if self.EarlyStopping.check(ge2e_loss):
                 print(f'Early stopping employed.')
-                self.periodic_ops(self.config.stop_at_step+1, ge2e_loss)
+                self.periodic_ops(step, ge2e_loss)
                 exit(0)
         print()
         self.writer.add_scalar(f'Accuracy/{mode}', accuracy, step)
@@ -172,7 +166,15 @@ class SingerIdentityEncoder:
             print("Default model. Saving progress to testruns directory")
             # delete backups and save_paths
             writer = SummaryWriter('testRuns/test')
-            return run_id_path, writer 
+            model = SpeakerEncoder(self.device, self.loss_device,
+                self.train_dataset.num_voices(),
+                self.num_feats,
+                self.config.model_hidden_size,
+                self.config.model_embedding_size,
+                self.config.num_layers
+            )
+            optimizer = torch.optim.Adam(model.parameters(), lr=self.config.learning_rate_init)
+            return optimizer, model, run_id_path, writer 
 
         else:
             # if run_id has a name...
@@ -183,21 +185,40 @@ class SingerIdentityEncoder:
                     print("Model \"%s\" found, loading params." % self.config.run_id)
                     checkpoint = torch.load(os.path.join(run_id_path, 'saved_model.pt'))
                     self.train_current_step = checkpoint["step"]
-                    self.model.load_state_dict(checkpoint["model_state"])
-                    self.optimizer.load_state_dict(checkpoint["optimizer_state"])
-                    self.optimizer.param_groups[0]["lr"] = self.config.learning_rate_init
+                    num_class_outs = checkpoint["model_state"]['class_layer.weight'].shape[0]
+                    number_feat_ins = checkpoint["model_state"]['lstm.weight_ih_l0'].shape[1]
+                    assert number_feat_ins == self.num_feats
+                    model = SpeakerEncoder(self.device, self.loss_device,
+                        num_class_outs,
+                        self.num_feats,
+                        self.config.model_hidden_size,
+                        self.config.model_embedding_size,
+                        self.config.num_layers
+                    )
+                    model.load_state_dict(checkpoint["model_state"])
+                    optimizer = torch.optim.Adam(model.parameters(), lr=self.config.learning_rate_init)
+                    optimizer.load_state_dict(checkpoint["optimizer_state"])
+                    optimizer.param_groups[0]["lr"] = self.config.learning_rate_init
                     writer = SummaryWriter(comment = '_' +self.config.new_run_id)
                     new_save_dir = os.path.join(run_id_path, self.config.new_run_id)
                     os.mkdir(new_save_dir)
                     open(new_save_dir +'/config.txt', 'w').write(self.config.string_sum)
-                    return new_save_dir, writer
+                    return optimizer, model, new_save_dir, writer
 
             else: # if run_id doesn't exist
                 print("No previous model found. Starting training from scratch.")
                 writer = SummaryWriter(comment = '_' +self.config.run_id)
                 os.mkdir(run_id_path)
                 open(run_id_path +'/config.txt', 'w').write(self.config.string_sum)
-                return run_id_path, writer
+                model = SpeakerEncoder(self.device, self.loss_device,
+                    self.train_dataset.num_voices(),
+                    self.num_feats,
+                    self.config.model_hidden_size,
+                    self.config.model_embedding_size,
+                    self.config.num_layers
+                )
+                optimizer = torch.optim.Adam(model.parameters(), lr=self.config.learning_rate_init)
+                return optimizer, model, run_id_path, writer
                 
 
     # generate loss metrics from classifications and embeddings

@@ -31,7 +31,7 @@ class Utterance:
             frames = np.concatenate((pad_vec, frames, pad_vec))
             
         end = start + n_frames
-#         print('start', start)
+        # print('start', start)
         return frames[start:end], (start, end)
 
 # get features, either from audio or precomputed npy arrays.
@@ -42,26 +42,29 @@ class Utterance:
             samps_per_frame = (self.feat_params['frame_dur_ms']/1000) * self.feat_params['sr']
             required_size =  int(samps_per_frame * n_frames)
             if y.shape[0] < 1:
-                # '+2' at end is for f0_estimation vector
+                # '+2' at end is for f0_estimation vectors
                 frames = np.zeros((n_frames, (self.feat_params['num_feats']+self.feat_params['num_aper_feats']+2)))
                 start_end = (0, required_size)
             else:
                 counter = 0
                 looper = True
                 while looper:
-                    if counter > 10:
-                        raise Exception(f'Could not find vocal segments after randomly selecting 10 segments of length {n_frames}.')
-                    try:
-                        if start == None:
-                            y_chunk, start_end = self.get_chunk(y, required_size)
-                        else:
-                            y_chunk, start_end = self.get_chunk(y, required_size, start)
-                        frames = process_data(y_chunk.astype('double'), self.feat_params, self.config)
+                    if counter < 10:
+                        try:
+                            if start == None:
+                                y_chunk, start_end = self.get_chunk(y, required_size)
+                            else:
+                                y_chunk, start_end = self.get_chunk(y, required_size, start)
+                            frames = process_data(y_chunk.astype('double'), self.feat_params, self.config)
+                            looper = False
+                        except ValueError as e:
+                            print(f'ValueError: {e}. Trying another random chunk from uttr: {self.frames_fpath}')
+                            counter +=1
+                    else:
+                        print(f'Could not find vocal segments. Returning zero\'d array instead')
+                        frames = np.zeros((n_frames, (self.feat_params['num_feats']+self.feat_params['num_aper_feats']+2)))
+                        start_end = (0, required_size)
                         looper = False
-                    except ValueError as e:
-                        print(e, 'Trying another random chunk')
-                        counter +=1
-
         else:
             frames = np.load(self.frames_fpath)
             frames, start_end = self.get_chunk(frames, n_frames)

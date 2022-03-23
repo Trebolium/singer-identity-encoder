@@ -29,7 +29,7 @@ if __name__ == "__main__":
         "Number of steps between updates of the model on the disk. Overwritten at every save")
     parser.add_argument("-ti", "--train_iters", type=int, default=200, help= "Number of training steps to take before passing back to validation steps")
     parser.add_argument("-vi", "--val_iters", type=int, default=10, help= "Number of validation steps to take before passing back to training steps")
-    parser.add_argument("-p", "--patience", type=int, default=25, help= "Determines how long EarlyStopping waits before ceasing training")
+    parser.add_argument("-p", "--patience", type=int, default=35, help= "Determines how long EarlyStopping waits before ceasing training")
     parser.add_argument("-stp", "--stop_at_step", type=int, default=100000, help= "Upper limit for number of steps before ceasing training")
 
     #framework setup
@@ -45,17 +45,18 @@ if __name__ == "__main__":
     parser.add_argument("-nl", "--num_layers", type=int, default=3, help= "Number of LSTM stacks in model.")
     parser.add_argument("-nt", "--num_timesteps", type=int, default=307, help= "Number of timesteps used in feature example fed to network")
     #feat params 
-    parser.add_argument('-ua','--use_audio', type=str2bool, default=True)
-    parser.add_argument('-uw','--use_wav2world', type=str2bool, default=False)
+    parser.add_argument('-ua','--use_audio', default=True, type=str2bool)
+    parser.add_argument('-uw','--use_wav2world', default=False, type=str2bool)
     parser.add_argument('-fe','--f0_extract', default='harvest', type=str)
     parser.add_argument('-drm','--dim_red_method', default='code-h', type=str)
     parser.add_argument('-fdm','--frame_dur_ms', default=10, type=float)    
     parser.add_argument('-nf','--num_feats', default=40, type=int)
     parser.add_argument('-naf','--num_aper_feats', default=4, type=int)
+    parser.add_argument('-uaf','--use_aper_feats', default=False, type=str2bool)    
     parser.add_argument('-sr','--sampling_rate', default=16000, type=int)
     parser.add_argument('-fft','--fft_size', default=None, type=int)
-    parser.add_argument('--fmin', default=50, type=int) #50 chosen by me, 71 chosen by default params   
-    parser.add_argument('--fmax', default=1100, type=int) #1100 chosen by me, 800 chosen by default params 
+    parser.add_argument('-fmin', default=50, type=int) #50 chosen by me, 71 chosen by default params   
+    parser.add_argument('-fmax', default=1100, type=int) #1100 chosen by me, 800 chosen by default params 
 
     parser.add_argument("-n", "--notes", type=str, default='', help= "Add these notes which will be saved to a config text file that gets saved in your saved directory")
     
@@ -68,7 +69,7 @@ if __name__ == "__main__":
                                 "fmin":config.fmin,
                                 "fmax":config.fmax,
                                 'num_feats':config.num_feats,
-                                'num_aper_feats':4,
+                                'num_aper_feats':config.num_aper_feats,
                                 'frame_dur_ms':config.frame_dur_ms,
                                 'sr':config.sampling_rate,
                                 'fft_size':config.fft_size}
