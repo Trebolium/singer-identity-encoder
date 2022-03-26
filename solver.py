@@ -20,7 +20,7 @@ The SIE's train method is implemented which in turn calls its own methods hierar
     train
         tester (optional for dev testing)
         batch_iterate
-            average_print_metrics
+            print_save_averages
             get_losses
             get_accuracy
             backprop_ops
@@ -36,7 +36,7 @@ class SingerIdentityEncoder:
         self.config = config
         self.device = torch.device(f'cuda:{self.config.which_cuda}' if torch.cuda.is_available() else "cpu")
         self.loss_device = torch.device("cpu")
-        self.prev_lowest_ge2e = math.inf
+        self.prev_lowest_val_ge2e = math.inf
 
         #Load feature parameters from dataset yaml
         if feat_params == None:
@@ -126,35 +126,46 @@ class SingerIdentityEncoder:
             # scheduled functions: print progress and metrics, save model
             if should_print:
                 self.print_monitor(step, mode)
-            self.periodic_ops(step, ge2e_loss)
+            
+            if step != 0 and step % self.config.tb_every == 0:
+                self.writer.flush()
+            
             if finish_iters:
-                self.average_print_metrics(step, mode) 
+                self.print_save_averages(step, mode)
+
+            if mode == 'val':
+
+                # save model params if current ge2e_loss is lower than lowest_ge2e_loss
+                self.save_by_val_loss(ge2e_loss)                 
+                # if Early Stopping, stop training
+                if self.EarlyStopping.check(ge2e_loss): 
+                    print(f'Early stopping employed.')
+                    exit(0)
+
                 break
 
     
     # print out metrics of model performance in a human-readable way and saving to tensorbaord format
-    def average_print_metrics(self, step, mode):
+    def print_save_averages(self, step, mode):
 
+        # print average metrics
         print('AVERAGE PER ITER BLOCK')
-        if mode == 'val': step = self.train_current_step # if train, step remains as step which suit conditions above. If val, model is trained to end of training stage which is now self.train_current_step 
         accuracy = round(self.entire_iter_metrics['acc']/self.mode_iters[mode], 4)
         ge2e_loss = round(self.entire_iter_metrics['ge2e'].item()/self.mode_iters[mode], 4)
         pred_loss = round(self.entire_iter_metrics['pred'].item()/self.mode_iters[mode], 4)
         both_loss = round(self.entire_iter_metrics['both'].item()/self.mode_iters[mode], 4)
-        if mode == 'train':
-            print(f'Steps {step}/{self.config.stop_at_step}, Accuracy: {accuracy}, GE2E loss: {ge2e_loss}, Pred loss: {pred_loss}, Total loss: {round(both_loss, 4)}')
-        else:
-            print(f'Steps {step}/{self.config.stop_at_step}, Accuracy: {accuracy}, GE2E loss: {ge2e_loss}, Pred loss: {pred_loss}, Total loss: {round(both_loss, 4)}')
-            if self.EarlyStopping.check(ge2e_loss):
-                print(f'Early stopping employed.')
-                self.periodic_ops(step, ge2e_loss)
-                exit(0)
-        print()
-        self.writer.add_scalar(f'Accuracy/{mode}', accuracy, step)
-        self.writer.add_scalar(f'GE2E Loss/{mode}', ge2e_loss, step)
-        self.writer.add_scalar(f'Class Loss/{mode}', pred_loss, step)
-        self.writer.add_scalar(f'Combined Loss/{mode}', both_loss, step)
-        for key in self.entire_iter_metrics.keys(): self.entire_iter_metrics[key]=0 #reset the entire_iter_metrics
+
+        print(f'Steps {self.train_current_step}/{self.config.stop_at_step}, Accuracy: {accuracy}, GE2E loss: {ge2e_loss}, Pred loss: {pred_loss}, Total loss: {round(both_loss, 4)} \n')
+
+        #reset the entire_iter_metrics
+        for key in self.entire_iter_metrics.keys():
+            self.entire_iter_metrics[key]=0
+
+        # add metrics to tensorboard
+        self.writer.add_scalar(f'Accuracy/{mode}', accuracy, self.train_current_step)
+        self.writer.add_scalar(f'GE2E Loss/{mode}', ge2e_loss, self.train_current_step)
+        self.writer.add_scalar(f'Class Loss/{mode}', pred_loss, self.train_current_step)
+        self.writer.add_scalar(f'Combined Loss/{mode}', both_loss, self.train_current_step)
 
 
     # Use user inputs to initiate mode, decide whether to save, or include pretrained weights
@@ -248,23 +259,21 @@ class SingerIdentityEncoder:
 
  
     # check number of steps in training cycle to determine if saving model and flush TB
-    def periodic_ops(self, step, ge2e_loss):
+    def save_by_val_loss(self, ge2e_loss):
 
-        if step != 0:
-            # save new tensorboard data to file
-            if step % self.config.tb_every == 0:
-                self.writer.flush()
-            # Overwrite the latest version of the model
-            if ge2e_loss < self.prev_lowest_ge2e or step >= self.config.stop_at_step: 
-                torch.save(
-                    {
-                    "step": step,
-                    "model_state": self.model.state_dict(),
-                    "optimizer_state": self.optimizer.state_dict(),
-                    },
-                    os.path.join(self.this_model_dir, 'saved_model.pt'))
-                print(f"Saving the model (step {step}) at time {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))}")
-                self.prev_lowest_ge2e = ge2e_loss
+        # Overwrite the latest version of the model whenever validation's ge2e loss is lower than previously
+        if ge2e_loss < self.prev_lowest_val_ge2e: 
+            torch.save(
+                {
+                "step": self.train_current_step,
+                "ge2e_loss": ge2e_loss,
+                "model_state": self.model.state_dict(),
+                "optimizer_state": self.optimizer.state_dict(),
+                },
+                os.path.join(self.this_model_dir, 'saved_model.pt'))
+            print(f"Saving the model (step {step}) at time {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))}")
+            self.prev_lowest_val_ge2e = ge2e_loss
+
 
     # print metric info in human-readable format
     def print_monitor(self, step, mode):
