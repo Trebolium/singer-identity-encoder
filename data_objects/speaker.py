@@ -26,7 +26,7 @@ class Speaker:
         self.utterances = [Utterance(self.root.joinpath(f+ext), f+ext, self.config, self.feat_params) for f in spkr_uttrs_list]
         self.utterance_cycler = RandomCycler(self.utterances)
       
-    def random_partial(self, count, n_frames, num_feats):
+    def random_partial(self, count, n_frames, num_total_feats):
         """
         Samples a batch of <count> unique partial utterances from the disk in a way that all 
         utterances come up at least once every two cycles and in a random order every time.
@@ -45,7 +45,7 @@ class Speaker:
 
         utterances = self.utterance_cycler.sample(count)
         """Utterance random__partial returns: (splice of numpy, (start/end values))"""
-        a = [(u,) + u.random_partial(n_frames, num_feats) for u in utterances]
+        a = [(u,) + u.random_partial(n_frames, num_total_feats) for u in utterances]
 
         # print(f'{len(a)} utterances for speaker {self.name} collected')
         """ a is a list of tuples (uttr objects, spliced uttr_features, start/end coords), size of count"""

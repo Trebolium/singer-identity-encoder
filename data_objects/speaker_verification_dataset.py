@@ -43,11 +43,11 @@ class SpeakerVerificationDataset(Dataset):
     
 class SpeakerVerificationDataLoader(DataLoader):
     def __init__(self, dataset, speakers_per_batch, utterances_per_speaker, partials_n_frames,
-                    num_feats, sampler=None, batch_sampler=None, num_workers=0,
+                    num_total_feats, sampler=None, batch_sampler=None, num_workers=0,
                     pin_memory=False, timeout=0, worker_init_fn=None):
         self.partials_n_frames = partials_n_frames
         self.utterances_per_speaker = utterances_per_speaker
-        self.num_feats = num_feats
+        self.num_total_feats = num_total_feats
         
         super().__init__(
             dataset=dataset, 
@@ -68,5 +68,5 @@ class SpeakerVerificationDataLoader(DataLoader):
         speaker_data is a batch of Speaker objects which contain paths and 
         """
         # print('Calling speakerbatch')
-        return SpeakerBatch(speaker_data, self.utterances_per_speaker, self.partials_n_frames, self.num_feats)
+        return SpeakerBatch(speaker_data, self.utterances_per_speaker, self.partials_n_frames, self.num_total_feats)
     

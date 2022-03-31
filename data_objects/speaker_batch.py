@@ -5,10 +5,10 @@ from typing import List
 
 
 class SpeakerBatch:
-    def __init__(self, speakers_data: List, utterances_per_speaker: int, n_frames: int, num_feats):        
+    def __init__(self, speakers_data: List, utterances_per_speaker: int, n_frames: int, num_total_feats):        
         # print("Speaker Batch initiated") 
         """ dict of speaker lists (uttr objects, evenly spliced uttr_features)"""
-        self.partials = {s.name: s.random_partial(utterances_per_speaker, n_frames, num_feats) for s,_ in speakers_data}
+        self.partials = {s.name: s.random_partial(utterances_per_speaker, n_frames, num_total_feats) for s,_ in speakers_data}
         # print("utterances per speaker generated")
         """ Array of shape (n_speakers * n_utterances, n_frames, mel_n), e.g. for 3 speakers with
         4 utterances each of 160 frames of 40 mel coefficients: (12, 160, 40)"""

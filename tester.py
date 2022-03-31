@@ -3,7 +3,7 @@ from data_objects.utterance import Utterance
 import numpy as np
 import pdb
 
-def collater(dataset, utterances_per_speaker, n_frames, num_feats, config, feat_params):
+def collater(dataset, utterances_per_speaker, n_frames, num_total_feats, config, feat_params):
     # warning: If using RandomCycler, dataset will be infinite
     for i, (speaker, idx) in enumerate(dataset):
         try:
@@ -18,7 +18,7 @@ def collater(dataset, utterances_per_speaker, n_frames, num_feats, config, feat_
             # load_partial utterances
             utterance_cycler = RandomCycler(utterances)
             utterances = utterance_cycler.sample(config.utterances_per_speaker)
-            a = [(u,) + u.random_partial(n_frames, num_feats) for u in utterances]
+            a = [(u,) + u.random_partial(n_frames, num_total_feats) for u in utterances]
         except:
             pdb.set_trace()
     speakers_data = [dataset[2], dataset[4], dataset[7]]

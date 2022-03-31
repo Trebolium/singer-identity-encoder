@@ -8,11 +8,11 @@ import torch, pdb
 
 
 class SpeakerEncoder(nn.Module):
-    def __init__(self, device, loss_device, class_num, num_feats, model_hidden_size, model_embedding_size, model_num_layers):
+    def __init__(self, device, loss_device, class_num, num_total_feats, model_hidden_size, model_embedding_size, model_num_layers):
         super().__init__()
         self.loss_device = loss_device
         # Network defition
-        self.lstm = nn.LSTM(input_size=num_feats,
+        self.lstm = nn.LSTM(input_size=num_total_feats,
                             hidden_size=model_hidden_size, 
                             num_layers=model_num_layers, 
                             batch_first=True).to(device)

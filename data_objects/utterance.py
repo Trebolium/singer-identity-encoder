@@ -1,10 +1,22 @@
 from concurrent.futures.process import _get_chunks
 import numpy as np
-import math, librosa, pdb
-import soundfile as sf
+import math, librosa, pdb, sys
+from librosa.filters import mel
+from scipy.io import wavfile
+# import soundfile as sf
 from sklearn.preprocessing import normalize
+import time
+import pyworld as pw
 
-from utils import process_data
+from utils import get_world_feats 
+
+# for some reason there is an unwatend path in sys.path. Must figure out how to remove this
+for i in sys.path:
+    if i == '/homes/bdoc3/wavenet_vocoder':
+        sys.path.remove(i)
+
+from audio.mel import audio_to_mel_autovc, db_normalize
+from audio.worldvocoder import freq_to_vuv_midi
 
 """Minimally altered code from https://github.com/Trebolium/Real-Time-Voice-Cloning/tree/master/encoder/data_objects"""
 
@@ -14,6 +26,12 @@ class Utterance:
         self.wave_fpath = wave_fpath
         self.config = config
         self.feat_params = feat_params
+        if config.feats_type == 'mel':
+            num_total_feats = feat_params['num_harm_feats']
+            self.mel_filter = mel(config.sampling_rate, config.fft_size, fmin=config.fmin, fmax=config.fmax, n_mels=num_total_feats).T
+            # self.mel_filter = mel(16000, 1024, fmin=90, fmax=7600, n_mels=80).T
+            self.min_level = np.exp(-100 / 20 * np.log(10))
+            self.hop_size = int((self.config.frame_dur_ms/1000) * self.config.sampling_rate)
 
     def get_chunk(self, frames, n_frames, start=None):
 
@@ -37,13 +55,15 @@ class Utterance:
 # get features, either from audio or precomputed npy arrays.
     def get_frames(self, n_frames, start=None):
 
+        # stime = time.time()
         if self.config.use_audio:
+            # _, y = wavfile.read(self.frames_fpath) # WAVFILE OUTPUTS PCM VALUES (INTS - CAUSES MEL GEN ISSUES)
             y, _ = sf.read(self.frames_fpath)
             samps_per_frame = (self.feat_params['frame_dur_ms']/1000) * self.feat_params['sr']
             required_size =  int(samps_per_frame * n_frames)
             if y.shape[0] < 1:
                 # '+2' at end is for f0_estimation vectors
-                frames = np.zeros((n_frames, (self.feat_params['num_feats']+self.feat_params['num_aper_feats']+2)))
+                frames = np.zeros((n_frames, (self.feat_params['num_harm_feats']+self.feat_params['num_aper_feats']+2)))
                 start_end = (0, required_size)
             else:
                 counter = 0
@@ -55,23 +75,34 @@ class Utterance:
                                 y_chunk, start_end = self.get_chunk(y, required_size)
                             else:
                                 y_chunk, start_end = self.get_chunk(y, required_size, start)
-                            frames = process_data(y_chunk.astype('double'), self.feat_params, self.config)
+                            if self.config.feats_type == 'mel':
+
+                                # THIS TO FILTER MEL THE SAME WAY WORLD FEATS ARE FILTERED FOR WINDOWS WITH VOICE IN THEM
+                                f0, t_stamp = pw.harvest(y_chunk, self.feat_params['sr'], self.feat_params['fmin'], self.feat_params['fmax'])
+                                refined_f0 = pw.stonemask(y_chunk, f0, t_stamp, self.feat_params['sr'])
+                                refined_f0 = freq_to_vuv_midi(refined_f0)
+
+                                db_unnormed_melspec = audio_to_mel_autovc(y_chunk, self.config.fft_size, self.hop_size, self.mel_filter)
+                                frames = db_normalize(db_unnormed_melspec, self.min_level)
+                            elif self.config.feats_type == 'world':
+                                frames = get_world_feats(y_chunk.astype('double'), self.feat_params, self.config)
+                            
                             looper = False
                         except ValueError as e:
                             print(f'ValueError: {e}. Trying another random chunk from uttr: {self.frames_fpath}')
                             counter +=1
                     else:
                         print(f'Could not find vocal segments. Returning zero\'d array instead')
-                        frames = np.zeros((n_frames, (self.feat_params['num_feats']+self.feat_params['num_aper_feats']+2)))
+                        frames = np.zeros((n_frames, (self.feat_params['num_harm_feats']+self.feat_params['num_aper_feats']+2))) # might need to alter if making aper gens conditional of config.use_aper_feats
                         start_end = (0, required_size)
                         looper = False
         else:
             frames = np.load(self.frames_fpath)
             frames, start_end = self.get_chunk(frames, n_frames)
-        # print('another utterance processed')
+        # print('another utterance processed', (time.time() - stime))
         return frames[:n_frames], start_end
 
-    def random_partial(self, n_frames, num_feats):
+    def random_partial(self, n_frames, num_total_feats):
         """
         Crops the frames into a partial utterance of n_frames
         
@@ -82,14 +113,14 @@ class Utterance:
         # pdb.set_trace()
 
         frames, start_end = self.get_frames(n_frames)
-        frames = frames[:,:num_feats]
+        frames = frames[:,:num_total_feats]
 
         # frames = (frames - frames.mean()) / frames.std() # normalise from 0-1 across entire numpy
         # frames = (frames - frames.mean(axis=0)) / frames.std(axis=0) # normalise from 0-1 across features
         # pdb.set_trace()   
         return frames, start_end
 
-    def specific_partial(self, n_frames, num_feats, start):
+    def specific_partial(self, n_frames, num_total_feats, start):
         """
         Crops the frames into a partial utterance of n_frames
         
@@ -100,7 +131,7 @@ class Utterance:
         # pdb.set_trace()
 
         frames, start_end = self.get_frames(n_frames, start)
-        frames = frames[:,:num_feats]
+        frames = frames[:,:num_total_feats]
 
         # frames = (frames - frames.mean()) / frames.std() # normalise from 0-1 across entire numpy
         # frames = (frames - frames.mean(axis=0)) / frames.std(axis=0) # normalise from 0-1 across features

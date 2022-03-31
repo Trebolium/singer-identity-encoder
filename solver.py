@@ -1,7 +1,7 @@
 from data_objects import SpeakerVerificationDataLoader, SpeakerVerificationDataset
 from model import SpeakerEncoder
 from pathlib import Path
-import torch, os, time, datetime, sys, yaml, math, pdb
+import torch, os, time, datetime, sys, yaml, math, shutil, pdb
 from torch import nn
 from tester import collater
 from torch.utils.tensorboard import SummaryWriter
@@ -20,7 +20,7 @@ The SIE's train method is implemented which in turn calls its own methods hierar
     train
         tester (optional for dev testing)
         batch_iterate
-            print_save_averages
+            get_avg_metrics
             get_losses
             get_accuracy
             backprop_ops
@@ -44,9 +44,9 @@ class SingerIdentityEncoder:
                 feat_params = yaml.load(File, Loader=yaml.FullLoader)
         self.feat_params = feat_params
         if config.use_aper_feats:
-            self.num_feats = feat_params['num_feats'] + feat_params['num_aper_feats']
+            self.num_total_feats = feat_params['num_harm_feats'] + feat_params['num_aper_feats']
         else:
-            self.num_feats = feat_params['num_feats']
+            self.num_total_feats = feat_params['num_harm_feats']
         #Create dataset and dataloader for val, train subsets
         self.train_dataset = SpeakerVerificationDataset(config.feature_dir.joinpath('train'),
             config, feat_params
@@ -59,23 +59,28 @@ class SingerIdentityEncoder:
             config.speakers_per_batch,
             config.utterances_per_speaker,
             config.num_timesteps,
-            self.num_feats,
-            num_workers=16,
+            self.num_total_feats,
+            num_workers=config.workers,
         )
         self.val_loader = SpeakerVerificationDataLoader(
             self.val_dataset,
             config.speakers_per_batch,
             config.utterances_per_speaker,
             config.num_timesteps,
-            self.num_feats,
-            num_workers=16,
+            self.num_total_feats,
+            num_workers=config.workers,
         )
 
         self.optimizer, self.model, self.this_model_dir, self.writer = self.config_model()
+        shutil.copyfile(os.path.join(os.getcwd(), 'solver.py'), os.path.join(self.this_model_dir, 'solver.py'))
+        shutil.copyfile(os.path.join(os.getcwd(), 'utils.py'), os.path.join(self.this_model_dir, 'utils.py'))
+        shutil.copyfile(os.path.join(os.getcwd(), 'data_objects/utterance.py'), os.path.join(self.this_model_dir, 'utterance.py'))
+
         self.backprop_losses = {'ge2e':0., 'pred':0., 'both':0., 'acc':0.}
         self.print_iter_metrics = {'ge2e':0., 'pred':0, 'both':0., 'acc':0.} 
         self.entire_iter_metrics = {'ge2e':0., 'pred':0., 'both':0., 'acc':0.} 
         self.mode_iters = {'train':self.config.train_iters, 'val':self.config.val_iters}
+
         self.EarlyStopping = EarlyStopping(patience=config.patience)
         self.start_time = time.time()
 
@@ -131,41 +136,47 @@ class SingerIdentityEncoder:
                 self.writer.flush()
             
             if finish_iters:
-                self.print_save_averages(step, mode)
-
-            if mode == 'val':
-
-                # save model params if current ge2e_loss is lower than lowest_ge2e_loss
-                self.save_by_val_loss(ge2e_loss)                 
-                # if Early Stopping, stop training
-                if self.EarlyStopping.check(ge2e_loss): 
-                    print(f'Early stopping employed.')
-                    exit(0)
+                _, avg_ge2e_loss, _, _ = self.get_avg_metrics(step, mode)
+                if mode == 'val':
+                    # save model params if current ge2e_loss is lower than lowest_ge2e_loss
+                    self.save_by_val_loss(avg_ge2e_loss)                 
+                    # if Early Stopping, stop training
+                    if self.EarlyStopping.check(avg_ge2e_loss): 
+                        print(f'Early stopping employed.')
+                        exit(0)
 
                 break
 
     
     # print out metrics of model performance in a human-readable way and saving to tensorbaord format
-    def print_save_averages(self, step, mode):
+    def get_avg_metrics(self, step, mode):
 
         # print average metrics
-        print('AVERAGE PER ITER BLOCK')
+        print(f'Mode: {mode}: AVERAGE PER ITER BLOCK')
         accuracy = round(self.entire_iter_metrics['acc']/self.mode_iters[mode], 4)
         ge2e_loss = round(self.entire_iter_metrics['ge2e'].item()/self.mode_iters[mode], 4)
         pred_loss = round(self.entire_iter_metrics['pred'].item()/self.mode_iters[mode], 4)
         both_loss = round(self.entire_iter_metrics['both'].item()/self.mode_iters[mode], 4)
 
-        print(f'Steps {self.train_current_step}/{self.config.stop_at_step}, Accuracy: {accuracy}, GE2E loss: {ge2e_loss}, Pred loss: {pred_loss}, Total loss: {round(both_loss, 4)} \n')
+        # report based on how many steps model has been TRAINED on so far (val steps don't count)
+        if mode == 'train':
+            this_step = step
+        else:
+            this_step = self.train_current_step
+        
+        print(f'Steps {this_step}/{self.config.stop_at_step}, Accuracy: {accuracy}, GE2E loss: {ge2e_loss}, Pred loss: {pred_loss}, Total loss: {round(both_loss, 4)} \n')
 
         #reset the entire_iter_metrics
         for key in self.entire_iter_metrics.keys():
             self.entire_iter_metrics[key]=0
 
         # add metrics to tensorboard
-        self.writer.add_scalar(f'Accuracy/{mode}', accuracy, self.train_current_step)
-        self.writer.add_scalar(f'GE2E Loss/{mode}', ge2e_loss, self.train_current_step)
-        self.writer.add_scalar(f'Class Loss/{mode}', pred_loss, self.train_current_step)
-        self.writer.add_scalar(f'Combined Loss/{mode}', both_loss, self.train_current_step)
+        self.writer.add_scalar(f'Accuracy/{mode}', accuracy, this_step)
+        self.writer.add_scalar(f'GE2E Loss/{mode}', ge2e_loss, this_step)
+        self.writer.add_scalar(f'Class Loss/{mode}', pred_loss, this_step)
+        self.writer.add_scalar(f'Combined Loss/{mode}', both_loss, this_step)
+
+        return accuracy, ge2e_loss, pred_loss, both_loss
 
 
     # Use user inputs to initiate mode, decide whether to save, or include pretrained weights
@@ -179,7 +190,7 @@ class SingerIdentityEncoder:
             writer = SummaryWriter('testRuns/test')
             model = SpeakerEncoder(self.device, self.loss_device,
                 self.train_dataset.num_voices(),
-                self.num_feats,
+                self.num_total_feats,
                 self.config.model_hidden_size,
                 self.config.model_embedding_size,
                 self.config.num_layers
@@ -198,10 +209,10 @@ class SingerIdentityEncoder:
                     self.train_current_step = checkpoint["step"]
                     num_class_outs = checkpoint["model_state"]['class_layer.weight'].shape[0]
                     number_feat_ins = checkpoint["model_state"]['lstm.weight_ih_l0'].shape[1]
-                    assert number_feat_ins == self.num_feats
+                    assert number_feat_ins == self.num_total_feats
                     model = SpeakerEncoder(self.device, self.loss_device,
                         num_class_outs,
-                        self.num_feats,
+                        self.num_total_feats,
                         self.config.model_hidden_size,
                         self.config.model_embedding_size,
                         self.config.num_layers
@@ -223,7 +234,7 @@ class SingerIdentityEncoder:
                 open(run_id_path +'/config.txt', 'w').write(self.config.string_sum)
                 model = SpeakerEncoder(self.device, self.loss_device,
                     self.train_dataset.num_voices(),
-                    self.num_feats,
+                    self.num_total_feats,
                     self.config.model_hidden_size,
                     self.config.model_embedding_size,
                     self.config.num_layers
@@ -259,20 +270,20 @@ class SingerIdentityEncoder:
 
  
     # check number of steps in training cycle to determine if saving model and flush TB
-    def save_by_val_loss(self, ge2e_loss):
+    def save_by_val_loss(self, avg_ge2e_loss):
 
         # Overwrite the latest version of the model whenever validation's ge2e loss is lower than previously
-        if ge2e_loss < self.prev_lowest_val_ge2e: 
+        if avg_ge2e_loss < self.prev_lowest_val_ge2e: 
             torch.save(
                 {
                 "step": self.train_current_step,
-                "ge2e_loss": ge2e_loss,
+                "ge2e_loss": avg_ge2e_loss,
                 "model_state": self.model.state_dict(),
                 "optimizer_state": self.optimizer.state_dict(),
                 },
                 os.path.join(self.this_model_dir, 'saved_model.pt'))
-            print(f"Saving the model (step {step}) at time {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))}")
-            self.prev_lowest_val_ge2e = ge2e_loss
+            print(f"Saving the model (step {self.train_current_step}) at time {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))}")
+            self.prev_lowest_val_ge2e = avg_ge2e_loss
 
 
     # print metric info in human-readable format
@@ -292,4 +303,4 @@ class SingerIdentityEncoder:
 
     # method for testing the computation of feature and batches without multiprocessing for debugging
     def tester(self):
-        collater(self.train_dataset, self.config.utterances_per_speaker, self.config.num_timesteps, self.num_feats, self.config, self.feat_params)    
+        collater(self.train_dataset, self.config.utterances_per_speaker, self.config.num_timesteps, self.num_total_feats, self.config, self.feat_params)    
