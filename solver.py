@@ -5,7 +5,6 @@ import torch, os, time, datetime, sys, yaml, math, shutil, pdb
 from torch import nn
 from tester import collater
 from torch.utils.tensorboard import SummaryWriter
-sys.path.insert(1, '/homes/bdoc3/my_utils')
 from neural.scheduler import EarlyStopping
 
 def sync(device):

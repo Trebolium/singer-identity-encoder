@@ -3,17 +3,13 @@ import numpy as np
 import math, librosa, pdb, sys
 from librosa.filters import mel
 from scipy.io import wavfile
-# import soundfile as sf
+import soundfile as sf
 from sklearn.preprocessing import normalize
 import time
 import pyworld as pw
 
 from utils import get_world_feats 
 
-# for some reason there is an unwatend path in sys.path. Must figure out how to remove this
-for i in sys.path:
-    if i == '/homes/bdoc3/wavenet_vocoder':
-        sys.path.remove(i)
 
 from audio.mel import audio_to_mel_autovc, db_normalize
 from audio.worldvocoder import freq_to_vuv_midi

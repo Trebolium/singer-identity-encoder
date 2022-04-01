@@ -3,12 +3,13 @@ import argparse, sys, random
 import numpy as np
 import pyworld as pw
 import pdb
-sys.path.insert(1, '/homes/bdoc3/my_utils')
+# sys.path.insert(1, '/homes/bdoc3/my_utils')
 
 # for some reason there is an unwatend path in sys.path. Must figure out how to remove this
-for i in sys.path:
-    if i == '/homes/bdoc3/wavenet_vocoder':
-        sys.path.remove(i)
+# for i in sys.path:
+#     if i == '/homes/bdoc3/wavenet_vocoder':
+#         sys.path.remove(i)
+
 
 from audio.worldvocoder import code_harmonic, sp_to_mfsc, freq_to_vuv_midi
 

@@ -1,7 +1,17 @@
+import sys
+
+# for some reason there is an unwatend path in sys.path. Must figure out how to remove this
+for i in sys.path:
+    if i == '/homes/bdoc3/wavenet_vocoder':
+        sys.path.remove(i)
+
+sys.path.insert(1, '/homes/bdoc3/my_utils')
+
 from utils import print_args
 from solver import SingerIdentityEncoder
 from pathlib import Path
 import argparse, pdb
+
 
 def str2bool(v):
     return v.lower() in ('true')
@@ -17,7 +27,7 @@ if __name__ == "__main__":
         If --new_run_id specified,this becomes the name of the model directory from which ckpt is extracted for pretrained weights")
     parser.add_argument("-nrid", "--new_run_id", type=str, default=None, help= \
         "If not None, this becomes the name of the new destination model directory and associated files, trained using ckpt from model specified in -run_id.")
-    parser.add_argument("-fd", "--feature_dir", type=Path, default="./example_dataset", help= \
+    parser.add_argument("-fd", "--feature_dir", type=Path, default="/homes/bdoc3/my_data/audio_data/deslienced_concat_DAMP", help= \
         "Path to directory of to feature dataset, which must contain train, val directories and feat_params.yaml file")
     parser.add_argument("-md", "--models_dir", type=Path, default="/homes/bdoc3/my_data/autovc_models/singer_identity_encoder/", help=\
         "Define the parent directory for all model directories")
