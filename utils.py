@@ -10,7 +10,6 @@ import pdb
 #     if i == '/homes/bdoc3/wavenet_vocoder':
 #         sys.path.remove(i)
 
-
 from audio.worldvocoder import code_harmonic, sp_to_mfsc, freq_to_vuv_midi
 
 _type_priorities = [    # In decreasing order

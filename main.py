@@ -69,7 +69,6 @@ if __name__ == "__main__":
     parser.add_argument('-fs','--fft_size', default=None, type=int)
     parser.add_argument('-fmin', default=50, type=int) #50 chosen by me, 71 chosen by default params   
     parser.add_argument('-fmax', default=1100, type=int) #1100 chosen by me, 800 chosen by default params 
-
     parser.add_argument("-n", "--notes", type=str, default='', help= "Add these notes which will be saved to a config text file that gets saved in your saved directory")
     
     config = parser.parse_args()

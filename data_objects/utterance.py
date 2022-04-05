@@ -13,6 +13,7 @@ from utils import get_world_feats
 
 from audio.mel import audio_to_mel_autovc, db_normalize
 from audio.worldvocoder import freq_to_vuv_midi
+from audio.pitching import midi_as_onehot
 
 """Minimally altered code from https://github.com/Trebolium/Real-Time-Voice-Cloning/tree/master/encoder/data_objects"""
 
@@ -110,6 +111,8 @@ class Utterance:
 
         frames, start_end = self.get_frames(n_frames)
         frames = frames[:,:num_total_feats]
+        pitches = frames[:,-2:]
+        one_hot_pitches = midi_as_onehot(pitches, self.config.vocal_range)
 
         # frames = (frames - frames.mean()) / frames.std() # normalise from 0-1 across entire numpy
         # frames = (frames - frames.mean(axis=0)) / frames.std(axis=0) # normalise from 0-1 across features
