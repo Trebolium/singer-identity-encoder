@@ -5,6 +5,8 @@ encoder/saved_models/
 venvsingerenc/
 train-clean-100/
 runs/
+sorted_runs/
 *pycache__/
 *.pyc
 *.sw*
+*.log
