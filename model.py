@@ -8,9 +8,11 @@ import torch, pdb
 
 
 class SpeakerEncoder(nn.Module):
-    def __init__(self, device, loss_device, class_num, num_total_feats, model_hidden_size, model_embedding_size, model_num_layers):
+    def __init__(self, device, loss_device, class_num, num_total_feats, model_hidden_size, model_embedding_size, model_num_layers, use_classify=True):
         super().__init__()
+        self.device = device
         self.loss_device = loss_device
+        self.use_classify = use_classify
         # Network defition
         self.lstm = nn.LSTM(input_size=num_total_feats,
                             hidden_size=model_hidden_size, 
@@ -20,12 +22,14 @@ class SpeakerEncoder(nn.Module):
                                 out_features=model_embedding_size).to(device)
         self.relu = torch.nn.ReLU().to(device)
         
-        self.class_layer = nn.Linear(model_embedding_size, class_num).to(device)
-            # ,nn.Dropout(self.dropout)
-            # ,nn.BatchNorm1d(512)
-            # ,nn.ReLU()
-            
-        
+        if use_classify == True:
+            self.class_layer = nn.Linear(model_embedding_size, class_num).to(device)
+                # ,nn.Dropout(self.dropout)
+                # ,nn.BatchNorm1d(512)
+                # ,nn.ReLU()
+        else:
+            self.class_num = class_num
+
         # Cosine similarity scaling (with fixed initial parameter values)
         self.similarity_weight = nn.Parameter(torch.tensor([10.])).to(loss_device)
         self.similarity_bias = nn.Parameter(torch.tensor([-5.])).to(loss_device)
@@ -61,8 +65,12 @@ class SpeakerEncoder(nn.Module):
         
         # L2-normalize it
         embeds = embeds_raw / (torch.norm(embeds_raw, dim=1, keepdim=True) + 1e-5)        
-        class_preds = self.class_layer(embeds)
 
+        if self.use_classify:
+            class_preds = self.class_layer(embeds)
+        else:
+            class_preds = torch.zeros((len(embeds), self.class_num)).to(self.device)
+            class_preds[:,0] = 1.0
         return embeds, class_preds
     
     def similarity_matrix(self, embeds):

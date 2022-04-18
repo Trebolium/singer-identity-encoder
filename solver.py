@@ -3,6 +3,7 @@ from model import SpeakerEncoder
 from pathlib import Path
 import torch, os, time, datetime, sys, yaml, math, shutil, pdb
 from torch import nn
+from collections import OrderedDict
 from tester import collater
 from torch.utils.tensorboard import SummaryWriter
 from neural.scheduler import EarlyStopping
@@ -36,16 +37,18 @@ class SingerIdentityEncoder:
         self.device = torch.device(f'cuda:{self.config.which_cuda}' if torch.cuda.is_available() else "cpu")
         self.loss_device = torch.device("cpu")
         self.prev_lowest_val_ge2e = math.inf
+        self.config.midi_range = range(0,100)
 
         #Load feature parameters from dataset yaml
         if feat_params == None:
             with open(os.path.join(self.config.feature_dir, 'feat_params.yaml')) as File:
                 feat_params = yaml.load(File, Loader=yaml.FullLoader)
         self.feat_params = feat_params
+        
+        self.num_total_feats = feat_params['num_harm_feats']
         if config.use_aper_feats:
-            self.num_total_feats = feat_params['num_harm_feats'] + feat_params['num_aper_feats']
-        else:
-            self.num_total_feats = feat_params['num_harm_feats']
+            self.num_total_feats = self.num_total_feats + feat_params['num_aper_feats']
+        
         #Create dataset and dataloader for val, train subsets
         self.train_dataset = SpeakerVerificationDataset(config.feature_dir.joinpath('train'),
             config, feat_params
@@ -69,6 +72,9 @@ class SingerIdentityEncoder:
             self.num_total_feats,
             num_workers=config.workers,
         )
+
+        if config.pitch_condition:
+            self.num_total_feats = self.num_total_feats + len(self.config.midi_range)
 
         self.optimizer, self.model, self.this_model_dir, self.writer = self.config_model()
         shutil.copyfile(os.path.join(os.getcwd(), 'solver.py'), os.path.join(self.this_model_dir, 'solver.py'))
@@ -107,11 +113,12 @@ class SingerIdentityEncoder:
         #Infinite training loop (as loader is infinite) until break
         print(f'---{mode.upper()}---')
         for step, speaker_batch in enumerate(loader, initial_iter_step+1):
+            
             # print(time.time() - self.start_time)
             finish_iters = (step != 0 and step % (initial_iter_step + self.mode_iters[mode]) == 0)
             should_print = (step != 0 and step % self.print_freq == 0)
             x_data_npy, y_data_npy = speaker_batch.data[0], speaker_batch.data[1]
-
+            
             # Forward pass
             inputs = torch.from_numpy(x_data_npy).to(self.device).float() # speakerbatch shape = speakers, timesteps, features
             y_data = torch.from_numpy(y_data_npy).to(self.device)
@@ -210,16 +217,25 @@ class SingerIdentityEncoder:
                     number_feat_ins = checkpoint["model_state"]['lstm.weight_ih_l0'].shape[1]
                     assert number_feat_ins == self.num_total_feats
                     model = SpeakerEncoder(self.device, self.loss_device,
-                        num_class_outs,
+                        self.train_dataset.num_voices(),
                         self.num_total_feats,
                         self.config.model_hidden_size,
                         self.config.model_embedding_size,
-                        self.config.num_layers
+                        self.config.num_layers,
+                        use_classify = False
                     )
-                    model.load_state_dict(checkpoint["model_state"])
+
+                    new_state_dict = OrderedDict()
+                    for (key, val) in checkpoint["model_state"].items():
+                        # if laoding for new dataset, makes no sense to transfer weights from previous class layer
+                        if key.startswith('class_layer'):
+                            continue
+                        new_state_dict[key] = val
+
+                    model.load_state_dict(new_state_dict)
                     optimizer = torch.optim.Adam(model.parameters(), lr=self.config.learning_rate_init)
-                    optimizer.load_state_dict(checkpoint["optimizer_state"])
-                    optimizer.param_groups[0]["lr"] = self.config.learning_rate_init
+                    # optimizer.load_state_dict(checkpoint["optimizer_state"]) # not necessary
+                    # optimizer.param_groups[0]["lr"] = self.config.learning_rate_init
                     writer = SummaryWriter(comment = '_' +self.config.new_run_id)
                     new_save_dir = os.path.join(run_id_path, self.config.new_run_id)
                     os.mkdir(new_save_dir)

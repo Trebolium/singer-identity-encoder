@@ -49,6 +49,7 @@ if __name__ == "__main__":
     parser.add_argument("-wc", "--which_cuda", type=int, default=0, help= "Choose which cuda driver to use.")
     parser.add_argument("-ul", "--use_loss", type=str, default='ge2e', help= "Choose mode for determining loss value")
     parser.add_argument('-w','--workers', default=16, type=int, help='Number of workers for parallel processing')
+    parser.add_argument('-pc','--pitch_condition', default=False, type=str2bool)
 
     #model setup (ints)
     parser.add_argument("-hs", "--model_hidden_size", type=int, default=256, help= "Number of dimensions in hidden layer.")
@@ -58,11 +59,11 @@ if __name__ == "__main__":
     
     #feat params (bool, str, int)
     parser.add_argument('-ua','--use_audio', default=True, type=str2bool)
-    parser.add_argument('-uaf','--use_aper_feats', default=False, type=str2bool)    
     parser.add_argument('-ft','--feats_type', default='world', type=str)
-    parser.add_argument('-wp','--w2w_process', default='harvest', type=str)
-    parser.add_argument('-drm','--dim_red_method', default='code-h', type=str)
-    parser.add_argument('-fdm','--frame_dur_ms', default=10, type=int)    
+    parser.add_argument('-uaf','--use_aper_feats', default=False, type=str2bool)    
+    parser.add_argument('-wp','--w2w_process', default='dio', type=str)
+    parser.add_argument('-drm','--dim_red_method', default='chandra', type=str)
+    parser.add_argument('-fdm','--frame_dur_ms', default=5, type=int)    
     parser.add_argument('-nhf','--num_harm_feats', default=40, type=int)
     parser.add_argument('-naf','--num_aper_feats', default=4, type=int)
     parser.add_argument('-sr','--sampling_rate', default=16000, type=int)

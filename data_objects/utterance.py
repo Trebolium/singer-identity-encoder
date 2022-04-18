@@ -11,9 +11,9 @@ import pyworld as pw
 from utils import get_world_feats 
 
 
-from audio.mel import audio_to_mel_autovc, db_normalize
-from audio.worldvocoder import freq_to_vuv_midi
-from audio.pitching import midi_as_onehot
+from my_audio.mel import audio_to_mel_autovc, db_normalize
+from my_audio.world import freq_to_vuv_midi
+from my_audio.pitch import midi_as_onehot
 
 """Minimally altered code from https://github.com/Trebolium/Real-Time-Voice-Cloning/tree/master/encoder/data_objects"""
 
@@ -38,11 +38,11 @@ class Utterance:
         else:
 #             print(f'frames.shape[0] {frames.shape[0]}, n_frames {n_frames}')
             start = 0
-            pad_size = math.ceil(n_frames - frames.shape[0]/2)
+            pad_size = math.ceil((n_frames - frames.shape[0])/2)
             if frames.ndim == 1:
                 pad_vec = np.full((pad_size), np.min(frames))
             else:
-                pad_vec = np.full((pad_size, frames.shape[1]), np.min(frames))
+                pad_vec = np.full((pad_size, frames.shape[1]), np.amin(frames, axis=0))
             frames = np.concatenate((pad_vec, frames, pad_vec))
             
         end = start + n_frames
@@ -73,9 +73,9 @@ class Utterance:
                             else:
                                 y_chunk, start_end = self.get_chunk(y, required_size, start)
                             if self.config.feats_type == 'mel':
-
-                                # THIS TO FILTER MEL THE SAME WAY WORLD FEATS ARE FILTERED FOR WINDOWS WITH VOICE IN THEM
-                                f0, t_stamp = pw.harvest(y_chunk, self.feat_params['sr'], self.feat_params['fmin'], self.feat_params['fmax'])
+                               
+                                # for fair comparison, this block to restrict mel selections same way as world features - maybe try crepe in future
+                                f0, t_stamp = pw.dio(y_chunk, self.feat_params['sr'], self.feat_params['fmin'], self.feat_params['fmax'])
                                 refined_f0 = pw.stonemask(y_chunk, f0, t_stamp, self.feat_params['sr'])
                                 refined_f0 = freq_to_vuv_midi(refined_f0)
 
@@ -94,8 +94,13 @@ class Utterance:
                         start_end = (0, required_size)
                         looper = False
         else:
-            frames = np.load(self.frames_fpath)
-            frames, start_end = self.get_chunk(frames, n_frames)
+            # if certain numpy files are corrupt, we must know about it
+            try:
+                frames = np.load(self.frames_fpath)
+                frames, start_end = self.get_chunk(frames, n_frames)
+            except Exception as e:
+                print(e)
+                pdb.set_trace
         # print('another utterance processed', (time.time() - stime))
         return frames[:n_frames], start_end
 
@@ -107,17 +112,29 @@ class Utterance:
         :return: the partial utterance frames and a tuple indicating the start and end of the 
         partial utterance in the complete utterance.
         """
-        # pdb.set_trace()
 
-        frames, start_end = self.get_frames(n_frames)
-        frames = frames[:,:num_total_feats]
-        pitches = frames[:,-2:]
-        one_hot_pitches = midi_as_onehot(pitches, self.config.vocal_range)
+        all_feats, start_end = self.get_frames(n_frames)
+        final_feats = all_feats[:,:num_total_feats]
+        
+        if self.config.pitch_condition:
+            midi_contour = all_feats[:,-2]
+            unvoiced = all_feats[:,-1].astype(int) == 1
+            # remove the interpretted values generated because of unvoiced sections
+            midi_contour[unvoiced] = 0
+            try:
+                onehot_midi = midi_as_onehot(midi_contour, self.config.midi_range)
+            except Exception as e:
+                print(e)
+                pdb.set_trace()
+                onehot_midi = midi_as_onehot(midi_contour, self.config.midi_range)
+            final_feats = np.concatenate((final_feats, onehot_midi), axis=1)
+
+#         pitches = frames[:,-2:]
+#         one_hot_pitches = midi_as_onehot(pitches, self.config.vocal_range)
 
         # frames = (frames - frames.mean()) / frames.std() # normalise from 0-1 across entire numpy
         # frames = (frames - frames.mean(axis=0)) / frames.std(axis=0) # normalise from 0-1 across features
-        # pdb.set_trace()   
-        return frames, start_end
+        return final_feats, start_end
 
     def specific_partial(self, n_frames, num_total_feats, start):
         """

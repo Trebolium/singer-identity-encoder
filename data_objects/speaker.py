@@ -24,8 +24,12 @@ class Speaker:
         """ Utterance stores mel and wav paths, but does not make them npy objects until random_partial() is called"""
         spkr_uttrs_list = [f.name[:-4] for f in self.root.glob('*' +ext)]
         self.utterances = [Utterance(self.root.joinpath(f+ext), f+ext, self.config, self.feat_params) for f in spkr_uttrs_list]
-        self.utterance_cycler = RandomCycler(self.utterances)
-      
+        try:
+            self.utterance_cycler = RandomCycler(self.utterances)
+        except Exception as e:
+            print(e)
+            pdb.set_trace()
+
     def random_partial(self, count, n_frames, num_total_feats):
         """
         Samples a batch of <count> unique partial utterances from the disk in a way that all 
