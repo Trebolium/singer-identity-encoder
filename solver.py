@@ -4,9 +4,11 @@ from pathlib import Path
 import torch, os, time, datetime, sys, yaml, math, shutil, pdb
 from torch import nn
 from collections import OrderedDict
+import numpy as np
 from tester import collater
 from torch.utils.tensorboard import SummaryWriter
 from neural.scheduler import EarlyStopping
+from my_plot import save_array_img
 
 def sync(device):
     # For correct profiling (cuda operations are async)
@@ -36,8 +38,8 @@ class SingerIdentityEncoder:
         self.config = config
         self.device = torch.device(f'cuda:{self.config.which_cuda}' if torch.cuda.is_available() else "cpu")
         self.loss_device = torch.device("cpu")
-        self.prev_lowest_val_ge2e = math.inf
-        self.config.midi_range = range(0,100)
+        self.prev_lowest_val_loss = math.inf
+        self.config.midi_range = range(36,82) #range between Db5 and Ab5 (1 semitone wider than the World wav2world default params)
 
         #Load feature parameters from dataset yaml
         if feat_params == None:
@@ -74,12 +76,13 @@ class SingerIdentityEncoder:
         )
 
         if config.pitch_condition:
-            self.num_total_feats = self.num_total_feats + len(self.config.midi_range)
+            self.num_total_feats = self.num_total_feats + len(self.config.midi_range) + 1
 
         self.optimizer, self.model, self.this_model_dir, self.writer = self.config_model()
         shutil.copyfile(os.path.join(os.getcwd(), 'solver.py'), os.path.join(self.this_model_dir, 'solver.py'))
         shutil.copyfile(os.path.join(os.getcwd(), 'utils.py'), os.path.join(self.this_model_dir, 'utils.py'))
         shutil.copyfile(os.path.join(os.getcwd(), 'data_objects/utterance.py'), os.path.join(self.this_model_dir, 'utterance.py'))
+        os.makedirs(os.path.join(self.this_model_dir, 'input_tensor_plots'), exist_ok=True)
 
         self.backprop_losses = {'ge2e':0., 'pred':0., 'both':0., 'acc':0.}
         self.print_iter_metrics = {'ge2e':0., 'pred':0, 'both':0., 'acc':0.} 
@@ -119,6 +122,12 @@ class SingerIdentityEncoder:
             should_print = (step != 0 and step % self.print_freq == 0)
             x_data_npy, y_data_npy = speaker_batch.data[0], speaker_batch.data[1]
             
+            # save first 4 examples
+            if step < 5:
+            # if True:
+                ex_path = os.path.join(self.this_model_dir, 'input_tensor_plots', f'step {step}')
+                save_array_img(np.rot90(x_data_npy[0]), ex_path)
+
             # Forward pass
             inputs = torch.from_numpy(x_data_npy).to(self.device).float() # speakerbatch shape = speakers, timesteps, features
             y_data = torch.from_numpy(y_data_npy).to(self.device)
@@ -145,7 +154,8 @@ class SingerIdentityEncoder:
                 _, avg_ge2e_loss, _, _ = self.get_avg_metrics(step, mode)
                 if mode == 'val':
                     # save model params if current ge2e_loss is lower than lowest_ge2e_loss
-                    self.save_by_val_loss(avg_ge2e_loss)                 
+                    if self.save_by_val_loss(avg_ge2e_loss):
+                        print(f"Saved model (step {self.train_current_step}) at time {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))}")
                     # if Early Stopping, stop training
                     if self.EarlyStopping.check(avg_ge2e_loss): 
                         print(f'Early stopping employed.')
@@ -285,20 +295,20 @@ class SingerIdentityEncoder:
 
  
     # check number of steps in training cycle to determine if saving model and flush TB
-    def save_by_val_loss(self, avg_ge2e_loss):
+    def save_by_val_loss(self, current_loss):
 
         # Overwrite the latest version of the model whenever validation's ge2e loss is lower than previously
-        if avg_ge2e_loss < self.prev_lowest_val_ge2e: 
+        if current_loss < self.prev_lowest_val_loss: 
             torch.save(
                 {
                 "step": self.train_current_step,
-                "ge2e_loss": avg_ge2e_loss,
+                "ge2e_loss": current_loss,
                 "model_state": self.model.state_dict(),
                 "optimizer_state": self.optimizer.state_dict(),
                 },
                 os.path.join(self.this_model_dir, 'saved_model.pt'))
-            print(f"Saving the model (step {self.train_current_step}) at time {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))}")
-            self.prev_lowest_val_ge2e = avg_ge2e_loss
+            self.prev_lowest_val_loss = current_loss
+            return True
 
 
     # print metric info in human-readable format

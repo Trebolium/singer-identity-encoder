@@ -7,7 +7,7 @@ import soundfile as sf
 from sklearn.preprocessing import normalize
 import time
 import pyworld as pw
-
+from my_normalise import norm_feat_arr
 from utils import get_world_feats 
 
 
@@ -114,12 +114,14 @@ class Utterance:
         """
 
         all_feats, start_end = self.get_frames(n_frames)
-        final_feats = all_feats[:,:num_total_feats]
+        spec_feats = all_feats[:,:num_total_feats]
+
+        spec_feats = norm_feat_arr(spec_feats, self.config.norm_method)
         
         if self.config.pitch_condition:
             midi_contour = all_feats[:,-2]
-            unvoiced = all_feats[:,-1].astype(int) == 1
             # remove the interpretted values generated because of unvoiced sections
+            unvoiced = all_feats[:,-1].astype(int) == 1
             midi_contour[unvoiced] = 0
             try:
                 onehot_midi = midi_as_onehot(midi_contour, self.config.midi_range)
@@ -127,10 +129,11 @@ class Utterance:
                 print(e)
                 pdb.set_trace()
                 onehot_midi = midi_as_onehot(midi_contour, self.config.midi_range)
-            final_feats = np.concatenate((final_feats, onehot_midi), axis=1)
+            final_feats = np.concatenate((spec_feats, onehot_midi), axis=1)
+        else:
+            final_feats = spec_feats
 
-#         pitches = frames[:,-2:]
-#         one_hot_pitches = midi_as_onehot(pitches, self.config.vocal_range)
+
 
         # frames = (frames - frames.mean()) / frames.std() # normalise from 0-1 across entire numpy
         # frames = (frames - frames.mean(axis=0)) / frames.std(axis=0) # normalise from 0-1 across features

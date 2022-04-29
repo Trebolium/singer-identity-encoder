@@ -58,10 +58,11 @@ if __name__ == "__main__":
     parser.add_argument("-nt", "--num_timesteps", type=int, default=307, help= "Number of timesteps used in feature example fed to network")
     
     #feat params (bool, str, int)
-    parser.add_argument('-ua','--use_audio', default=True, type=str2bool)
+    parser.add_argument('-ua','--use_audio', default=False, type=str2bool)
     parser.add_argument('-ft','--feats_type', default='world', type=str)
     parser.add_argument('-uaf','--use_aper_feats', default=False, type=str2bool)    
-    parser.add_argument('-wp','--w2w_process', default='dio', type=str)
+    parser.add_argument('-nm','--norm_method', default=None, type=str)
+    parser.add_argument('-wp','--w2w_process', default='wav2world', type=str)
     parser.add_argument('-drm','--dim_red_method', default='chandra', type=str)
     parser.add_argument('-fdm','--frame_dur_ms', default=5, type=int)    
     parser.add_argument('-nhf','--num_harm_feats', default=40, type=int)

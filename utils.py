@@ -1,8 +1,8 @@
 from pathlib import Path
-import argparse, sys, random
+import argparse, sys, random, pdb
 import numpy as np
 import pyworld as pw
-import pdb
+from my_normalise import zero_one_mapped, unit_var
 # sys.path.insert(1, '/homes/bdoc3/my_utils')
 
 # for some reason there is an unwatend path in sys.path. Must figure out how to remove this
@@ -103,3 +103,9 @@ def get_world_feats(y, feat_params, config):
 
     return out_feats
 
+def norm_feat_arr(arr, config):
+    if config.norm_method == 'zero_one':
+        arr = zero_one_mapped(arr)
+    elif config.norm_method == 'unit_var':
+        arr = unit_var(arr)
+    return arr
