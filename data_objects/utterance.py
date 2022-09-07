@@ -7,7 +7,7 @@ import soundfile as sf
 from sklearn.preprocessing import normalize
 import time
 import pyworld as pw
-from my_normalise import norm_feat_arr
+from my_normalise import norm_feat_arr, apply_norm_stats
 from utils import get_world_feats 
 
 
@@ -18,7 +18,8 @@ from my_audio.pitch import midi_as_onehot
 """Minimally altered code from https://github.com/Trebolium/Real-Time-Voice-Cloning/tree/master/encoder/data_objects"""
 
 class Utterance:
-    def __init__(self, frames_fpath, wave_fpath, config, feat_params):
+    def __init__(self, frames_fpath, wave_fpath, config, feat_params, norm_stats):
+        self.norm_stats = norm_stats
         self.frames_fpath = frames_fpath
         self.wave_fpath = wave_fpath
         self.config = config
@@ -100,7 +101,8 @@ class Utterance:
                 frames, start_end = self.get_chunk(frames, n_frames)
             except Exception as e:
                 print(e)
-                pdb.set_trace
+                pdb.set_trace    
+
         # print('another utterance processed', (time.time() - stime))
         return frames[:n_frames], start_end
 
@@ -116,7 +118,10 @@ class Utterance:
         all_feats, start_end = self.get_frames(n_frames)
         spec_feats = all_feats[:,:num_total_feats]
 
-        spec_feats = norm_feat_arr(spec_feats, self.config.norm_method)
+        if self.config.norm_method == 'schluter' or self.config.norm_method == 'global_unit_var':
+            spec_feats = norm_feat_arr(spec_feats, self.config.norm_method, self.norm_stats)
+        else:
+            spec_feats = norm_feat_arr(spec_feats, self.config.norm_method)
         
         if self.config.pitch_condition:
             midi_contour = all_feats[:,-2]

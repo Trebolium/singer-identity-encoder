@@ -15,8 +15,8 @@ class SpeakerEncoder(nn.Module):
         self.use_classify = use_classify
         # Network defition
         self.lstm = nn.LSTM(input_size=num_total_feats,
-                            hidden_size=model_hidden_size, 
-                            num_layers=model_num_layers, 
+                            hidden_size=model_hidden_size, #changed this from a hard coded 128 
+                            num_layers=3, 
                             batch_first=True).to(device)
         self.linear = nn.Linear(in_features=model_hidden_size, 
                                 out_features=model_embedding_size).to(device)

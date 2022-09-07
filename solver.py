@@ -9,6 +9,7 @@ from tester import collater
 from torch.utils.tensorboard import SummaryWriter
 from neural.scheduler import EarlyStopping
 from my_plot import save_array_img
+from my_os import recursive_file_retrieval
 
 def sync(device):
     # For correct profiling (cuda operations are async)
@@ -53,11 +54,16 @@ class SingerIdentityEncoder:
         
         #Create dataset and dataloader for val, train subsets
         self.train_dataset = SpeakerVerificationDataset(config.feature_dir.joinpath('train'),
-            config, feat_params
+            config, feat_params, self.num_total_feats
         )
-        self.val_dataset = SpeakerVerificationDataset(config.feature_dir.joinpath('val'),
-            config, feat_params
-        )
+        if config.norm_method == 'schluter' or config.norm_method == 'global_unit_var':
+            norm_stats = self.train_dataset.get_stats()
+            self.val_dataset = SpeakerVerificationDataset(config.feature_dir.joinpath('val'),
+                config, feat_params, self.num_total_feats, norm_stats)
+        else:
+            self.val_dataset = SpeakerVerificationDataset(config.feature_dir.joinpath('val'),
+                config, feat_params, self.num_total_feats)         
+        
         self.train_loader = SpeakerVerificationDataLoader(
             self.train_dataset,
             config.speakers_per_batch,
@@ -85,12 +91,29 @@ class SingerIdentityEncoder:
         os.makedirs(os.path.join(self.this_model_dir, 'input_tensor_plots'), exist_ok=True)
 
         self.backprop_losses = {'ge2e':0., 'pred':0., 'both':0., 'acc':0.}
-        self.print_iter_metrics = {'ge2e':0., 'pred':0, 'both':0., 'acc':0.} 
-        self.entire_iter_metrics = {'ge2e':0., 'pred':0., 'both':0., 'acc':0.} 
-        self.mode_iters = {'train':self.config.train_iters, 'val':self.config.val_iters}
+        self.print_iter_metrics = {'ge2e':0., 'pred':0., 'both':0., 'acc':0.} 
+        self.entire_iter_metrics = {'ge2e':0., 'pred':0., 'both':0., 'acc':0.}
+
+        train_iters = self.get_iter_size(config, 'train')
+        val_iters = self.get_iter_size(config, 'val')
+
+        self.mode_iters = {'train':train_iters, 'val':val_iters}
+        print(f'iters per subset: {self.mode_iters}')
 
         self.EarlyStopping = EarlyStopping(patience=config.patience)
         self.start_time = time.time()
+
+    # return the number of iters appropriate to consider as one epoch. Estimated constants for chunks_per_track
+    def get_iter_size(self, config, subset):
+        num_train_subdirs = len(os.listdir(os.path.join(config.feature_dir, subset)))
+        _, train_fps = recursive_file_retrieval(os.path.join(config.feature_dir, subset))
+        if 'damp' in str(config.feature_dir):
+            chunks_per_track = 30
+        elif 'vctk' in str(config.feature_dir):
+            chunks_per_track = 1
+        avg_uttrs_per_spkr = len(train_fps) / num_train_subdirs
+        train_iters = int((num_train_subdirs//config.speakers_per_batch) * ((avg_uttrs_per_spkr*chunks_per_track)//config.utterances_per_speaker))
+        return train_iters
 
     #Cycle between train and eval mode until completion, monitoring training steps
     def train(self):
@@ -154,10 +177,11 @@ class SingerIdentityEncoder:
                 _, avg_ge2e_loss, _, _ = self.get_avg_metrics(step, mode)
                 if mode == 'val':
                     # save model params if current ge2e_loss is lower than lowest_ge2e_loss
-                    if self.save_by_val_loss(avg_ge2e_loss):
+                    check = self.EarlyStopping.check(avg_ge2e_loss)
+                    if check == 'lowest_loss':
+                        self.save_by_val_loss(avg_ge2e_loss)
                         print(f"Saved model (step {self.train_current_step}) at time {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))}")
-                    # if Early Stopping, stop training
-                    if self.EarlyStopping.check(avg_ge2e_loss): 
+                    if check == 0:
                         print(f'Early stopping employed.')
                         exit(0)
 
@@ -199,6 +223,7 @@ class SingerIdentityEncoder:
     def config_model(self):
 
         run_id_path = os.path.join(self.config.models_dir, self.config.run_id)
+
         # start without creating a dir in saved models, direct tensorboard save to dummy directory
         if self.config.run_id == 'testRuns':
             print("Default model. Saving progress to testruns directory")
@@ -222,9 +247,16 @@ class SingerIdentityEncoder:
                 else:
                     print("Model \"%s\" found, loading params." % self.config.run_id)
                     checkpoint = torch.load(os.path.join(run_id_path, 'saved_model.pt'))
-                    self.train_current_step = checkpoint["step"]
-                    num_class_outs = checkpoint["model_state"]['class_layer.weight'].shape[0]
-                    number_feat_ins = checkpoint["model_state"]['lstm.weight_ih_l0'].shape[1]
+                    if self.config.run_id == 'autoVc_pretrainedOnVctk_Mels80':
+                        model_state = 'model_b'
+                        self.train_current_step = 0
+                        number_feat_ins = checkpoint[model_state]['module.lstm.weight_ih_l0'].shape[1]
+                    else:
+                        model_state = 'model_state'
+                        self.train_current_step = checkpoint["step"]
+                        number_feat_ins = checkpoint[model_state]['lstm.weight_ih_l0'].shape[1]
+                    # num_class_outs = checkpoint["model_state"]['class_layer.weight'].shape[0]
+                    
                     assert number_feat_ins == self.num_total_feats
                     model = SpeakerEncoder(self.device, self.loss_device,
                         self.train_dataset.num_voices(),
@@ -236,10 +268,17 @@ class SingerIdentityEncoder:
                     )
 
                     new_state_dict = OrderedDict()
-                    for (key, val) in checkpoint["model_state"].items():
+                    if self.config.run_id == 'autoVc_pretrainedOnVctk_Mels80':
+                        new_state_dict['similarity_weight'] = model.similarity_weight
+                        new_state_dict['similarity_bias'] = model.similarity_bias
+                    for (key, val) in checkpoint[model_state].items():
                         # if laoding for new dataset, makes no sense to transfer weights from previous class layer
                         if key.startswith('class_layer'):
                             continue
+                        if self.config.run_id == 'autoVc_pretrainedOnVctk_Mels80':
+                            key = key[7:]
+                            if key.startswith('embedding'):
+                                key = 'linear.' +key[10:]
                         new_state_dict[key] = val
 
                     model.load_state_dict(new_state_dict)
@@ -262,7 +301,8 @@ class SingerIdentityEncoder:
                     self.num_total_feats,
                     self.config.model_hidden_size,
                     self.config.model_embedding_size,
-                    self.config.num_layers
+                    self.config.num_layers,
+                    use_classify=False
                 )
                 optimizer = torch.optim.Adam(model.parameters(), lr=self.config.learning_rate_init)
                 return optimizer, model, run_id_path, writer
@@ -298,17 +338,15 @@ class SingerIdentityEncoder:
     def save_by_val_loss(self, current_loss):
 
         # Overwrite the latest version of the model whenever validation's ge2e loss is lower than previously
-        if current_loss < self.prev_lowest_val_loss: 
-            torch.save(
-                {
-                "step": self.train_current_step,
-                "ge2e_loss": current_loss,
-                "model_state": self.model.state_dict(),
-                "optimizer_state": self.optimizer.state_dict(),
-                },
-                os.path.join(self.this_model_dir, 'saved_model.pt'))
-            self.prev_lowest_val_loss = current_loss
-            return True
+        torch.save(
+            {
+            "step": self.train_current_step,
+            "ge2e_loss": current_loss,
+            "model_state": self.model.state_dict(),
+            "optimizer_state": self.optimizer.state_dict(),
+            },
+            os.path.join(self.this_model_dir, 'saved_model.pt'))
+
 
 
     # print metric info in human-readable format

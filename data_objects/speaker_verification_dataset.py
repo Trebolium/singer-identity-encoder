@@ -1,25 +1,34 @@
-import pdb
+import pdb, os
 from data_objects.random_cycler import RandomCycler
 from data_objects.speaker_batch import SpeakerBatch
 from data_objects.speaker import Speaker
 from torch.utils.data import Dataset, DataLoader
 from pathlib import Path
+from my_normalise import get_norm_stats
 
 """Altered code from https://github.com/Trebolium/Real-Time-Voice-Cloning/tree/master/encoder/data_objects"""
 
 
 # collects paths to utterances of speakers - does not collect the data itself
 class SpeakerVerificationDataset(Dataset):
-    def __init__(self, datasets_root, config, feat_params):
+    def __init__(self, datasets_root, config, feat_params, num_total_feats, norm_stats=None):
 
         self.root = datasets_root
         speaker_dirs = [f for f in self.root.glob("*") if f.is_dir() and not str(f).startswith('.')]
         if len(speaker_dirs) == 0:
             raise Exception("No speakers found. Make sure you are pointing to the directory "
                             "containing all preprocessed speaker directories.")
-        self.speakers = [(Speaker(speaker_dir, config, feat_params), i) for i, speaker_dir in enumerate(speaker_dirs)]
+
+        if norm_stats == None:
+            if config.norm_method == 'schluter' or config.norm_method == 'global_unit_var':
+                norm_stats = get_norm_stats(datasets_root, num_total_feats)
+        self.norm_stats = norm_stats
+        self.speakers = [(Speaker(speaker_dir, config, feat_params, norm_stats), i) for i, speaker_dir in enumerate(speaker_dirs)]
         self.num_speakers = len(self.speakers)
         self.speaker_cycler = RandomCycler(self.speakers)
+
+    def get_stats(self):
+        return self.norm_stats
 
     def num_voices(self):
         return self.num_speakers
