@@ -285,7 +285,7 @@ class SingerIdentityEncoder:
                     optimizer = torch.optim.Adam(model.parameters(), lr=self.config.learning_rate_init)
                     # optimizer.load_state_dict(checkpoint["optimizer_state"]) # not necessary
                     # optimizer.param_groups[0]["lr"] = self.config.learning_rate_init
-                    writer = SummaryWriter(comment = '_' +self.config.new_run_id)
+                    writer = SummaryWriter(comment = '_' +os.path.basename(self.config.new_run_id))
                     new_save_dir = os.path.join(run_id_path, self.config.new_run_id)
                     os.mkdir(new_save_dir)
                     open(new_save_dir +'/config.txt', 'w').write(self.config.string_sum)

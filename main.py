@@ -10,7 +10,9 @@ sys.path.insert(1, '/homes/bdoc3/my_utils')
 from utils import print_args
 from solver import SingerIdentityEncoder
 from pathlib import Path
-import argparse, pdb
+import argparse
+import os
+import pdb
 
 
 def str2bool(v):
@@ -23,6 +25,7 @@ if __name__ == "__main__":
     )
     
     # path specifications    
+    # FIXME: rid and nrid are not intuitive. should be more like load and save folders
     parser.add_argument("-rid", "--run_id", type=str, default='testRuns', help= "Name of destination model directory and associated files.\
         If --new_run_id specified,this becomes the name of the model directory from which ckpt is extracted for pretrained weights")
     parser.add_argument("-nrid", "--new_run_id", type=str, default=None, help= \
@@ -56,6 +59,7 @@ if __name__ == "__main__":
     parser.add_argument("-es", "--model_embedding_size", type=int, default=256, help= "Model embedding size.")
     parser.add_argument("-nl", "--num_layers", type=int, default=3, help= "Number of LSTM stacks in model.")
     parser.add_argument("-nt", "--num_timesteps", type=int, default=128, help= "Number of timesteps used in feature example fed to network")
+    parser.add_argument('-tr','--tiny_run', default=False, action='store_true')
     
     #feat params (bool, str, int)
     parser.add_argument('-ua','--use_audio', default=False, type=str2bool)
@@ -75,7 +79,7 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--notes", type=str, default='', help= "Add these notes which will be saved to a config text file that gets saved in your saved directory")
     
     config = parser.parse_args()
-    
+
     if config.use_audio ==True:
         feat_params = feat_params = {"w2w_process":config.w2w_process,
                                 "dim_red_method":config.dim_red_method,
@@ -90,6 +94,9 @@ if __name__ == "__main__":
         
 
     # Process arguments
+    config.run_id = os.path.join(config.models_dir, config.run_id)
+    if config.new_run_id != None:
+        config.new_run_id = os.path.join(config.models_dir, config.new_run_id) 
     config.models_dir.mkdir(exist_ok=True)
     config.string_sum = str(config)
     print_args(config, parser)
