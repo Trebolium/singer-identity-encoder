@@ -287,7 +287,7 @@ def build_SIE_model(total_num_feats, device):
         new_state_dict = OrderedDict()
 
         # verify the number of features (sie_num_feats_used) model was trained on matches our intended use
-        if SIE_ckpt_path.endswith('autoVc_pretrained'):
+        if SIE_ckpt_path.endswith('autoVc_pretrainedOnVctk_Mels80'):
             model_state = 'model_b'
             sie_num_feats_used = sie_checkpoint[model_state]['module.lstm.weight_ih_l0'].shape[1]
         else:
@@ -304,7 +304,7 @@ def build_SIE_model(total_num_feats, device):
         # incrementally update new_state_dict with checkpoint params, and load
         for (key, val) in sie_checkpoint[model_state].items():
             # condtional if a certain recognised type of SIE, keys() will be different
-            if SIE_ckpt_path.endswith('autoVc_pretrained'):
+            if SIE_ckpt_path.endswith('autoVc_pretrainedOnVctk_Mels80'):
                 key = key[7:] # gets right of the substring 'module'
                 if key.startswith('embedding'):
                     key = 'linear.' +key[10:]
