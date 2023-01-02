@@ -8,8 +8,10 @@ import numpy as np
 from tester import collater
 from torch.utils.tensorboard import SummaryWriter
 from neural.scheduler import EarlyStopping
-from my_plot import save_array_img
-from my_os import recursive_file_retrieval
+from neural.eval import get_accuracy
+from my_plot import array_to_img
+from my_os import recursive_file_retrieval, overwrite_dir
+
 
 def sync(device):
     # For correct profiling (cuda operations are async)
@@ -149,7 +151,7 @@ class SingerIdentityEncoder:
             if step < 5:
             # if True:
                 ex_path = os.path.join(self.this_model_dir, 'input_tensor_plots', f'step {step}')
-                save_array_img(np.rot90(x_data_npy[0]), ex_path)
+                array_to_img(np.rot90(x_data_npy[0]), ex_path)
 
             # Forward pass
             inputs = torch.from_numpy(x_data_npy).to(self.device).float() # speakerbatch shape = speakers, timesteps, features
@@ -175,6 +177,7 @@ class SingerIdentityEncoder:
             
             if finish_iters:
                 _, avg_ge2e_loss, _, _ = self.get_avg_metrics(step, mode)
+
                 if mode == 'val':
                     # save model params if current ge2e_loss is lower than lowest_ge2e_loss
                     check = self.EarlyStopping.check(avg_ge2e_loss)
@@ -185,7 +188,10 @@ class SingerIdentityEncoder:
                         print(f'Early stopping employed.')
                         exit(0)
 
-                break
+                else:
+                    if step >= self.config.stop_at_step:
+                        self.save_by_val_loss(avg_ge2e_loss, f'ckpt_{step}.ckpt')
+                    break
 
     
     # print out metrics of model performance in a human-readable way and saving to tensorbaord format
@@ -247,7 +253,7 @@ class SingerIdentityEncoder:
                 else:
                     print("Model \"%s\" found, loading params." % self.config.run_id)
                     checkpoint = torch.load(os.path.join(run_id_path, 'saved_model.pt'))
-                    if self.config.run_id == 'autoVc_pretrainedOnVctk_Mels80':
+                    if self.config.run_id.endswith('autoVc_pretrainedOnVctk_Mels80'):
                         model_state = 'model_b'
                         self.train_current_step = 0
                         number_feat_ins = checkpoint[model_state]['module.lstm.weight_ih_l0'].shape[1]
@@ -268,14 +274,14 @@ class SingerIdentityEncoder:
                     )
 
                     new_state_dict = OrderedDict()
-                    if self.config.run_id == 'autoVc_pretrainedOnVctk_Mels80':
+                    if self.config.run_id.endswith('autoVc_pretrainedOnVctk_Mels80'):
                         new_state_dict['similarity_weight'] = model.similarity_weight
                         new_state_dict['similarity_bias'] = model.similarity_bias
                     for (key, val) in checkpoint[model_state].items():
                         # if laoding for new dataset, makes no sense to transfer weights from previous class layer
                         if key.startswith('class_layer'):
                             continue
-                        if self.config.run_id == 'autoVc_pretrainedOnVctk_Mels80':
+                        if self.config.run_id.endswith('autoVc_pretrainedOnVctk_Mels80'):
                             key = key[7:]
                             if key.startswith('embedding'):
                                 key = 'linear.' +key[10:]
@@ -287,14 +293,14 @@ class SingerIdentityEncoder:
                     # optimizer.param_groups[0]["lr"] = self.config.learning_rate_init
                     writer = SummaryWriter(comment = '_' +os.path.basename(self.config.new_run_id))
                     new_save_dir = os.path.join(run_id_path, self.config.new_run_id)
-                    os.mkdir(new_save_dir)
+                    overwrite_dir(new_save_dir, self.config.ask)
                     open(new_save_dir +'/config.txt', 'w').write(self.config.string_sum)
                     return optimizer, model, new_save_dir, writer
 
             else: # if run_id doesn't exist
                 print("No previous model found. Starting training from scratch.")
                 writer = SummaryWriter(comment = '_' +self.config.run_id)
-                os.mkdir(run_id_path)
+                overwrite_dir(run_id_path, self.config.ask)
                 open(run_id_path +'/config.txt', 'w').write(self.config.string_sum)
                 model = SpeakerEncoder(self.device, self.loss_device,
                     self.train_dataset.num_voices(),
@@ -316,14 +322,6 @@ class SingerIdentityEncoder:
         pred_loss = nn.functional.cross_entropy(predictions, y_data)
         return ge2e_loss, pred_loss
 
-  
-    # generate classification loss using predictions and labels
-    def get_accuracy(self, predictions, y_data):
-        _, predicted = torch.max(predictions.data, 1)
-        correct_preds = (predicted == y_data).sum().item()
-        sync(self.loss_device)
-        return correct_preds / len(y_data) #accuracy
-
  
     # backpropogate through the network and reset gradients
     def backprop_ops(self, mode):
@@ -335,7 +333,7 @@ class SingerIdentityEncoder:
 
  
     # check number of steps in training cycle to determine if saving model and flush TB
-    def save_by_val_loss(self, current_loss):
+    def save_by_val_loss(self, current_loss, name='saved_model.pt'):
 
         # Overwrite the latest version of the model whenever validation's ge2e loss is lower than previously
         torch.save(
@@ -345,7 +343,7 @@ class SingerIdentityEncoder:
             "model_state": self.model.state_dict(),
             "optimizer_state": self.optimizer.state_dict(),
             },
-            os.path.join(self.this_model_dir, 'saved_model.pt'))
+            os.path.join(self.this_model_dir, name))
 
 
 

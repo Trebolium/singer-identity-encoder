@@ -15,6 +15,7 @@ import os
 import pdb
 
 
+
 def str2bool(v):
     return v.lower() in ('true')
 
@@ -32,8 +33,9 @@ if __name__ == "__main__":
         "If not None, this becomes the name of the new destination model directory and associated files, trained using ckpt from model specified in -run_id.")
     parser.add_argument("-fd", "--feature_dir", type=Path, default="/homes/bdoc3/my_data/audio_data/deslienced_concat_DAMP", help= \
         "Path to directory of to feature dataset, which must contain train, val directories and feat_params.yaml file")
-    parser.add_argument("-md", "--models_dir", type=Path, default="/homes/bdoc3/my_data/autovc_models/singer_identity_encoder/", help=\
+    parser.add_argument("-md", "--models_dir", type=Path, default="/homes/bdoc3/my_data/autovc_models/singer-identity-encoder/", help=\
         "Define the parent directory for all model directories")
+    parser.add_argument('-a','--ask', default=True, type=str2bool)
     
     #schedulers (ints)
     parser.add_argument("-te", "--tb_every", type=int, default=10, help= \
@@ -96,7 +98,8 @@ if __name__ == "__main__":
     # Process arguments
     config.run_id = os.path.join(config.models_dir, config.run_id)
     if config.new_run_id != None:
-        config.new_run_id = os.path.join(config.models_dir, config.new_run_id) 
+        config.new_run_id = os.path.join(config.models_dir, config.new_run_id)
+
     config.models_dir.mkdir(exist_ok=True)
     config.string_sum = str(config)
     print_args(config, parser)

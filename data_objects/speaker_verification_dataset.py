@@ -14,7 +14,7 @@ class SpeakerVerificationDataset(Dataset):
     def __init__(self, datasets_root, config, feat_params, num_total_feats, norm_stats=None):
 
         self.root = datasets_root
-        speaker_dirs = [f for f in self.root.glob("*") if f.is_dir() and not str(f).startswith('.')]
+        speaker_dirs = [f for f in self.root.glob("*") if f.is_dir() and not str(f).startswith('.') and not os.path.basename(f).startswith('.')]
         if len(speaker_dirs) == 0:
             raise Exception("No speakers found. Make sure you are pointing to the directory "
                             "containing all preprocessed speaker directories.")
@@ -26,6 +26,7 @@ class SpeakerVerificationDataset(Dataset):
         self.speakers = [(Speaker(speaker_dir, config, feat_params, norm_stats), i) for i, speaker_dir in enumerate(speaker_dirs)]
         self.num_speakers = len(self.speakers)
         self.speaker_cycler = RandomCycler(self.speakers)
+        # pdb.set_trace()
 
     def get_stats(self):
         return self.norm_stats

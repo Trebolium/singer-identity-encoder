@@ -283,7 +283,7 @@ def build_SIE_model(total_num_feats, device):
     
     if SIE_ckpt_path != None:
         print('using trained model')
-        sie_checkpoint = torch.load(os.path.join(SIE_ckpt_path, 'saved_model.pt'))
+        sie_checkpoint = torch.load(os.path.join(SIE_ckpt_path, 'saved_model.pt'), map_location='cpu')
         new_state_dict = OrderedDict()
 
         # verify the number of features (sie_num_feats_used) model was trained on matches our intended use

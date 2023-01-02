@@ -28,6 +28,7 @@ def process_all_vocalisations(SIE):
     """
     all_singer_embs = []
     singer_meta_data = []
+    
     for label, vd in enumerate(multisong_voice_dirs):
         singer_track_name_dirs = []
         track_pp = len(os.listdir(vd))
@@ -36,27 +37,39 @@ def process_all_vocalisations(SIE):
         singer_pitches = []
         singer_embs = []
         vd_tracks = os.listdir(vd)
+        vd_tracks = [i for i in vd_tracks if not i.startswith('.') or not i.endswith('.npy')]
         random.shuffle(vd_tracks)
         # go through this voices tracks in random order
-        for i, fn in enumerate(vd_tracks[:max_tracks_pp]):
+        count = 0
+        emb_per_track = math.ceil(max_embs_pp/len(vd_tracks))
+        for i, fn in enumerate(vd_tracks):
             print(f'File: {fn}, {i}/{min(len(os.listdir(vd)), max_tracks_pp)}')
             fp = os.path.join(vd, fn)
-            if not fp.endswith('npy'):
+            if not fp.endswith('npy') or fp.startswith('.'):
                 continue
             feats = np.load(fp)
+            if feats.shape[0] <= window_timesteps:
+                continue
+
             voiced = feats[:,-1].astype(int) == 0
             singer_pitches.extend(feats[:,-2][voiced])
+
             # scan through this track in chunks
-            for start in range(0, len(feats)-window_timesteps, window_timesteps):
-                trimmed_feats, _ = fix_feat_length(feats, window_timesteps, start)
-                spectral_feats = trimmed_feats[:,:num_feats_used]
-                SIE_input = torch.from_numpy(spectral_feats).to(device).float().unsqueeze(0)
-                singer_emb = SIE(SIE_input)
+            # for start in range(0, len(feats)-window_timesteps, window_timesteps):
+            #     trimmed_feats, _ = fix_feat_length(feats, window_timesteps, start)
+            #     spectral_feats = trimmed_feats[:,:num_feats_used]
+            #     SIE_input = torch.from_numpy(spectral_feats).to(device).float().unsqueeze(0)
+            for j in range(emb_per_track):
+                left = np.random.randint(0, feats.shape[0]-window_timesteps)
+                cropped_feats = torch.from_numpy(feats[np.newaxis, left: left+window_timesteps, :]).to(device).float()
+                singer_emb = SIE(cropped_feats)
                 singer_emb = singer_emb.squeeze(0).cpu().detach().numpy()
                 singer_embs.append(singer_emb)
                 singer_track_name_dirs.append(fn)
-                # print(start, len(singer_embs))
-        
+                count += 1
+            if count >= max_tracks_pp:
+                break
+
         all_singer_embs.append(singer_embs)
         singer_avg = np.mean(np.asarray(singer_embs), axis=0)
         singer_meta_data.append([os.path.basename(vd), singer_avg] + singer_track_name_dirs) 
@@ -70,6 +83,8 @@ def threshold_subdir_retrieval():
     subdir = os.path.join(ds_dir_path, subset)
     r, voice_dirs, fps = next(os.walk(subdir))
     for vd in voice_dirs:
+        if vd.startswith('.'):
+            continue
         if len(os.listdir(os.path.join(r, vd))) >= min_tracks_pp:
             print(os.path.join(r, vd))
             multisong_voice_dirs.append(os.path.join(r, vd))
@@ -111,14 +126,12 @@ if __name__ == '__main__':
         random.shuffle(multisong_voice_dirs)
     else:
         multisong_voice_dirs = random.sample(multisong_voice_dirs, k=max_num_singers)
-
     SIE = build_SIE_model(num_feats_used, device) # make sure model layer params in avg_emb_params are correct
     all_singer_embs, singer_meta_data = process_all_vocalisations(SIE)
 
     print('Saving data to disk...')
-    with open(os.path.join(dst_dir, 'voices_metadata.pkl'), 'wb') as handle:
+    with open(os.path.join(dst_dir, f'voices_metadata_{max_tracks_pp}avg.pkl'), 'wb') as handle:
         pickle.dump(singer_meta_data, handle)
 
-    with open(os.path.join(dst_dir, 'voices_chunks_embs.pkl'), 'wb') as handle:
+    with open(os.path.join(dst_dir, f'voices_chunks_embs_{max_tracks_pp}avg.pkl'), 'wb') as handle:
         pickle.dump(all_singer_embs, handle)
-
