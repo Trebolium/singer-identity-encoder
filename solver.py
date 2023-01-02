@@ -160,7 +160,7 @@ class SingerIdentityEncoder:
             embeds, predictions = self.model(inputs)
 
             # generate loss metrics
-            accuracy = self.get_accuracy(predictions, y_data)
+            accuracy = get_accuracy(predictions, y_data)
             ge2e_loss, pred_loss = self.get_losses(embeds, predictions, y_data)
             metrics_list = [ge2e_loss, pred_loss, (ge2e_loss + pred_loss), accuracy]
             for i, key in enumerate(self.backprop_losses.keys()): self.backprop_losses[key] = metrics_list[i]
@@ -172,7 +172,7 @@ class SingerIdentityEncoder:
             if should_print:
                 self.print_monitor(step, mode)
             
-            if step != 0 and step % self.config.tb_every == 0:
+            if step != 0 and step % 10 == 0:
                 self.writer.flush()
             
             if finish_iters:
