@@ -33,17 +33,13 @@ if __name__ == "__main__":
         "If not None, this becomes the name of the new destination model directory and associated files, trained using ckpt from model specified in -run_id.")
     parser.add_argument("-fd", "--feature_dir", type=Path, default="/homes/bdoc3/my_data/audio_data/deslienced_concat_DAMP", help= \
         "Path to directory of to feature dataset, which must contain train, val directories and feat_params.yaml file")
+    parser.add_argument("-pd", "--pitch_dir", type=Path, default='/import/c4dm-02/bdoc3/world_data/damp_80_16ms', help= \
+        "Path to directory to pitch feature dataset, which must contain train, val directories and feat_params.yaml file")    
     parser.add_argument("-md", "--models_dir", type=Path, default="/homes/bdoc3/my_data/autovc_models/singer-identity-encoder/", help=\
         "Define the parent directory for all model directories")
     parser.add_argument('-a','--ask', default=True, type=str2bool)
     
     #schedulers (ints)
-    parser.add_argument("-te", "--tb_every", type=int, default=10, help= \
-        "Number of steps between updates of the loss and the plots for in tensorboard.")
-    parser.add_argument("-se", "--save_every", type=int, default=1000, help= \
-        "Number of steps between updates of the model on the disk. Overwritten at every save")
-    # parser.add_argument("-ti", "--train_iters", type=int, default=354, help= "Should be the number of singers in training set divided by num_speakers per batch")
-    # parser.add_argument("-vi", "--val_iters", type=int, default=44, help= "Should be the number of singers in val set divided by num_speakers per batch")
     parser.add_argument("-p", "--patience", type=int, default=40, help= "Determines how long EarlyStopping waits before ceasing training")
     parser.add_argument("-stp", "--stop_at_step", type=int, default=1000000, help= "Upper limit for number of steps before ceasing training")
 
@@ -66,15 +62,18 @@ if __name__ == "__main__":
     #feat params (bool, str, int)
     parser.add_argument('-ua','--use_audio', default=False, type=str2bool)
     parser.add_argument('-ft','--feats_type', default='mel', type=str)
-    parser.add_argument('-uaf','--use_aper_feats', default=False, type=str2bool)    
-    parser.add_argument('-nm','--norm_method', default=None, type=str)
-    parser.add_argument('-wp','--w2w_process', default='wav2world', type=str)
-    parser.add_argument('-drm','--dim_red_method', default='chandra', type=str)
+
     parser.add_argument('-fdm','--frame_dur_ms', default=16, type=int)    
     parser.add_argument('-nhf','--num_harm_feats', default=80, type=int)
     parser.add_argument('-naf','--num_aper_feats', default=0, type=int)
     parser.add_argument('-sr','--sampling_rate', default=16000, type=int)
     parser.add_argument('-fs','--fft_size', default=1024, type=int)
+
+    parser.add_argument('-uaf','--use_aper_feats', default=False, type=str2bool)    
+    parser.add_argument('-nm','--norm_method', default=None, type=str)
+    parser.add_argument('-wp','--w2w_process', default='wav2world', type=str)
+    parser.add_argument('-drm','--dim_red_method', default='chandra', type=str)
+
     # change the fmin/fmax values to 90/7600 
     parser.add_argument('-fmin', default=90, type=int) #50 chosen by me, 71 chosen by default params   
     parser.add_argument('-fmax', default=7600, type=int) #1100 chosen by me, 800 chosen by default params 
