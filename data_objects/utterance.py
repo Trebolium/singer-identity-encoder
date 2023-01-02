@@ -6,14 +6,11 @@ from scipy.io import wavfile
 import soundfile as sf
 from sklearn.preprocessing import normalize
 import time
+from pathlib import Path
 import pyworld as pw
 from my_normalise import norm_feat_arr, apply_norm_stats
-from utils import get_world_feats 
-
-
 from my_audio.mel import audio_to_mel_autovc, db_normalize
-from my_audio.world import freq_to_vuv_midi
-from my_audio.pitch import midi_as_onehot
+from my_audio.world import freq_to_vuv_midi, onehotmidi_from_world_fp
 
 """Minimally altered code from https://github.com/Trebolium/Real-Time-Voice-Cloning/tree/master/encoder/data_objects"""
 
@@ -74,14 +71,16 @@ class Utterance:
                             else:
                                 y_chunk, start_end = self.get_chunk(y, required_size, start)
                             if self.config.feats_type == 'mel':
-                               
+
                                 # for fair comparison, this block to restrict mel selections same way as world features - maybe try crepe in future
                                 f0, t_stamp = pw.dio(y_chunk, self.feat_params['sr'], self.feat_params['fmin'], self.feat_params['fmax'])
                                 refined_f0 = pw.stonemask(y_chunk, f0, t_stamp, self.feat_params['sr'])
                                 refined_f0 = freq_to_vuv_midi(refined_f0)
+                                raise NotImplementedError # this freq contours need to be concat with original feats
 
                                 db_unnormed_melspec = audio_to_mel_autovc(y_chunk, self.config.fft_size, self.hop_size, self.mel_filter)
                                 frames = db_normalize(db_unnormed_melspec, self.min_level)
+
                             elif self.config.feats_type == 'world':
                                 frames = get_world_feats(y_chunk.astype('double'), self.feat_params, self.config)
                             
@@ -98,7 +97,7 @@ class Utterance:
             # if certain numpy files are corrupt, we must know about it
             try:
                 frames = np.load(self.frames_fpath)
-                frames, start_end = self.get_chunk(frames, n_frames)
+                frames, start_end = self.get_chunk(frames, n_frames)         
             except Exception as e:
                 print(e)
                 pdb.set_trace    
@@ -124,25 +123,15 @@ class Utterance:
             spec_feats = norm_feat_arr(spec_feats, self.config.norm_method)
         
         if self.config.pitch_condition:
-            midi_contour = all_feats[:,-2]
-            # remove the interpretted values generated because of unvoiced sections
-            unvoiced = all_feats[:,-1].astype(int) == 1
-            midi_contour[unvoiced] = 0
-            try:
-                onehot_midi = midi_as_onehot(midi_contour, self.config.midi_range)
-            except Exception as e:
-                print(e)
-                pdb.set_trace()
-                onehot_midi = midi_as_onehot(midi_contour, self.config.midi_range)
+            subset_vocalist_performance_path = Path(self.frames_fpath).relative_to(self.config.feature_dir)
+            pitch_feat_path = self.config.pitch_dir / subset_vocalist_performance_path
+            onehot_midi = onehotmidi_from_world_fp(pitch_feat_path, start_end[0], n_frames, self.config.midi_range)
             final_feats = np.concatenate((spec_feats, onehot_midi), axis=1)
         else:
             final_feats = spec_feats
 
-
-
-        # frames = (frames - frames.mean()) / frames.std() # normalise from 0-1 across entire numpy
-        # frames = (frames - frames.mean(axis=0)) / frames.std(axis=0) # normalise from 0-1 across features
         return final_feats, start_end
+
 
     def specific_partial(self, n_frames, num_total_feats, start):
         """
@@ -152,12 +141,8 @@ class Utterance:
         :return: the partial utterance frames and a tuple indicating the start and end of the 
         partial utterance in the complete utterance.
         """
-        # pdb.set_trace()
 
         frames, start_end = self.get_frames(n_frames, start)
         frames = frames[:,:num_total_feats]
 
-        # frames = (frames - frames.mean()) / frames.std() # normalise from 0-1 across entire numpy
-        # frames = (frames - frames.mean(axis=0)) / frames.std(axis=0) # normalise from 0-1 across features
-        # pdb.set_trace()   
         return frames, start_end 
