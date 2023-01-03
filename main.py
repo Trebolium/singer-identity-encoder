@@ -47,7 +47,7 @@ if __name__ == "__main__":
     parser.add_argument("-lri", "--learning_rate_init", type=int, default=1e-4, help= "Choose which cuda driver to use.")
     parser.add_argument("-spb", "--speakers_per_batch", type=int, default=8, help= "Choose which cuda driver to use.")
     parser.add_argument("-ups", "--utterances_per_speaker", type=int, default=10, help= "Choose which cuda driver to use.")
-    parser.add_argument("-wc", "--which_cuda", type=int, default=1, help= "Choose which cuda driver to use.")
+    parser.add_argument("-wc", "--which_cuda", type=int, default=0, help= "Choose which cuda driver to use.")
     parser.add_argument("-ul", "--use_loss", type=str, default='ge2e', help= "Choose mode for determining loss value")
     parser.add_argument('-w','--workers', default=20, type=int, help='Number of workers for parallel processing')
     parser.add_argument('-pc','--pitch_condition', default=False, type=str2bool)
@@ -95,7 +95,6 @@ if __name__ == "__main__":
         
 
     # Process arguments
-    config.run_id = os.path.join(config.models_dir, config.run_id)
     if config.new_run_id != None:
         config.new_run_id = os.path.join(config.models_dir, config.new_run_id)
 

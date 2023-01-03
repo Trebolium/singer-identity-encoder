@@ -191,7 +191,7 @@ class SingerIdentityEncoder:
                 else:
                     if step >= self.config.stop_at_step:
                         self.save_by_val_loss(avg_ge2e_loss, f'ckpt_{step}.ckpt')
-                    break
+                break
 
     
     # print out metrics of model performance in a human-readable way and saving to tensorbaord format
@@ -356,9 +356,9 @@ class SingerIdentityEncoder:
         et = time.time() - self.start_time
         et = str(datetime.timedelta(seconds=et))[:-7]
         if mode == 'train':
-            print(f'Elapsed: [{et}], Steps {step}/{self.config.stop_at_step}, Accuracy: {round(pred_acc, 4)}, GE2E loss: {round(ge2e_loss, 4)}, Pred loss: {round(pred_loss, 4)}, Total loss: {round(total_loss, 4)}')
+            print(f'Elapsed: [{et}], Mode: {mode}, Steps {step}/{self.config.stop_at_step}, Accuracy: {round(pred_acc, 4)}, GE2E loss: {round(ge2e_loss, 4)}, Pred loss: {round(pred_loss, 4)}, Total loss: {round(total_loss, 4)}')
         else:
-            print(f'Steps {self.train_current_step}/{self.config.stop_at_step}, Accuracy: {round(pred_acc, 4)}, GE2E loss: {round(ge2e_loss, 4)}, Pred loss: {round(pred_loss, 4)}, Total loss: {round(total_loss, 4)}') 
+            print(f'Elapsed: [{et}], Mode: {mode}, Steps {self.train_current_step}/{self.config.stop_at_step}, Accuracy: {round(pred_acc, 4)}, GE2E loss: {round(ge2e_loss, 4)}, Pred loss: {round(pred_loss, 4)}, Total loss: {round(total_loss, 4)}') 
         for key in self.print_iter_metrics.keys(): self.print_iter_metrics[key]=0  
 
 
