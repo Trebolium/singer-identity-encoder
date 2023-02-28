@@ -96,13 +96,17 @@ class SingerIdentityEncoder:
         self.print_iter_metrics = {'ge2e':0., 'pred':0., 'both':0., 'acc':0.} 
         self.entire_iter_metrics = {'ge2e':0., 'pred':0., 'both':0., 'acc':0.}
 
-        train_iters = self.get_iter_size(config, 'train')
-        val_iters = self.get_iter_size(config, 'val')
+        if config.use_given_iters:
+            train_iters = config.train_iters
+            val_iters = config.val_iters
+        else:
+            train_iters = self.get_iter_size(config, 'train')
+            val_iters = self.get_iter_size(config, 'val')
 
         self.mode_iters = {'train':train_iters, 'val':val_iters}
         print(f'iters per subset: {self.mode_iters}')
 
-        self.EarlyStopping = EarlyStopping(patience=config.patience)
+        self.EarlyStopping = EarlyStopping(patience=config.patience, threshold=config.earlystop_thresh)
         self.start_time = time.time()
 
     # return the number of iters appropriate to consider as one epoch. Estimated constants for chunks_per_track
@@ -121,6 +125,7 @@ class SingerIdentityEncoder:
     def train(self):
         # self.tester()
         training_complete = False
+        # pdb.set_trace()
         while training_complete == False:
             mode = 'train'
             self.model.train()
@@ -140,6 +145,7 @@ class SingerIdentityEncoder:
 
         #Infinite training loop (as loader is infinite) until break
         print(f'---{mode.upper()}---')
+        pdb.set_trace
         for step, speaker_batch in enumerate(loader, initial_iter_step+1):
             
             # print(time.time() - self.start_time)
