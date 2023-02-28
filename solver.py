@@ -55,9 +55,10 @@ class SingerIdentityEncoder:
             self.num_total_feats = self.num_total_feats + feat_params['num_aper_feats']
         
         #Create dataset and dataloader for val, train subsets
-        self.train_dataset = SpeakerVerificationDataset(config.feature_dir.joinpath('train'),
-            config, feat_params, self.num_total_feats
-        )
+        if not self.config.eval_only:
+            self.train_dataset = SpeakerVerificationDataset(config.feature_dir.joinpath('train'),
+                config, feat_params, self.num_total_feats
+            )
         if config.norm_method == 'schluter' or config.norm_method == 'global_unit_var':
             norm_stats = self.train_dataset.get_stats()
             self.val_dataset = SpeakerVerificationDataset(config.feature_dir.joinpath('val'),
@@ -65,15 +66,16 @@ class SingerIdentityEncoder:
         else:
             self.val_dataset = SpeakerVerificationDataset(config.feature_dir.joinpath('val'),
                 config, feat_params, self.num_total_feats)         
-        
-        self.train_loader = SpeakerVerificationDataLoader(
-            self.train_dataset,
-            config.speakers_per_batch,
-            config.utterances_per_speaker,
-            config.num_timesteps,
-            self.num_total_feats,
-            num_workers=config.workers,
-        )
+        # pdb.set_trace()
+        if not self.config.eval_only:
+            self.train_loader = SpeakerVerificationDataLoader(
+                self.train_dataset,
+                config.speakers_per_batch,
+                config.utterances_per_speaker,
+                config.num_timesteps,
+                self.num_total_feats,
+                num_workers=config.workers,
+            )
         self.val_loader = SpeakerVerificationDataLoader(
             self.val_dataset,
             config.speakers_per_batch,
@@ -127,17 +129,27 @@ class SingerIdentityEncoder:
         training_complete = False
         # pdb.set_trace()
         while training_complete == False:
-            mode = 'train'
-            self.model.train()
-            self.batch_iterate(self.train_loader, self.train_current_step, mode)
-            self.train_current_step += self.mode_iters['train']
-            mode = 'val'
-            self.model.eval()
-            with torch.no_grad():
-                self.batch_iterate(self.val_loader, self.val_current_step, mode)
-            self.val_current_step += self.mode_iters['val']
-            if self.train_current_step >= self.config.stop_at_step:
-                training_complete = True
+
+            if self.config.eval_only:
+                # pdb.set_trace()
+                mode = 'val'
+                self.model.eval()
+                with torch.no_grad():
+                    self.batch_iterate(self.val_loader, self.val_current_step, mode)
+                    break
+
+            else:
+                mode = 'train'
+                self.model.train()
+                self.batch_iterate(self.train_loader, self.train_current_step, mode)
+                self.train_current_step += self.mode_iters['train']
+                mode = 'val'
+                self.model.eval()
+                with torch.no_grad():
+                    self.batch_iterate(self.val_loader, self.val_current_step, mode)
+                self.val_current_step += self.mode_iters['val']
+                if self.train_current_step >= self.config.stop_at_step:
+                    training_complete = True
         print('Training complete')
 
     # iterate through a specificed subset, performing forward/backward passes and other implementing other methods
@@ -242,7 +254,7 @@ class SingerIdentityEncoder:
             # delete backups and save_paths
             writer = SummaryWriter('testRuns/test')
             model = SpeakerEncoder(self.device, self.loss_device,
-                self.train_dataset.num_voices(),
+                self.val_dataset.num_voices() if self.config.eval_only else self.train_dataset.num_voices(),
                 self.num_total_feats,
                 self.config.model_hidden_size,
                 self.config.model_embedding_size,
@@ -271,7 +283,7 @@ class SingerIdentityEncoder:
                     
                     assert number_feat_ins == self.num_total_feats
                     model = SpeakerEncoder(self.device, self.loss_device,
-                        self.train_dataset.num_voices(),
+                        self.val_dataset.num_voices() if self.config.eval_only else self.train_dataset.num_voices(),
                         self.num_total_feats,
                         self.config.model_hidden_size,
                         self.config.model_embedding_size,
@@ -309,7 +321,7 @@ class SingerIdentityEncoder:
                 overwrite_dir(run_id_path, self.config.ask)
                 open(run_id_path +'/config.txt', 'w').write(self.config.string_sum)
                 model = SpeakerEncoder(self.device, self.loss_device,
-                    self.train_dataset.num_voices(),
+                    self.val_dataset.num_voices() if self.config.eval_only else self.train_dataset.num_voices(),
                     self.num_total_feats,
                     self.config.model_hidden_size,
                     self.config.model_embedding_size,
@@ -365,9 +377,4 @@ class SingerIdentityEncoder:
             print(f'Elapsed: [{et}], Mode: {mode}, Steps {step}/{self.config.stop_at_step}, Accuracy: {round(pred_acc, 4)}, GE2E loss: {round(ge2e_loss, 4)}, Pred loss: {round(pred_loss, 4)}, Total loss: {round(total_loss, 4)}')
         else:
             print(f'Elapsed: [{et}], Mode: {mode}, Steps {self.train_current_step}/{self.config.stop_at_step}, Accuracy: {round(pred_acc, 4)}, GE2E loss: {round(ge2e_loss, 4)}, Pred loss: {round(pred_loss, 4)}, Total loss: {round(total_loss, 4)}') 
-        for key in self.print_iter_metrics.keys(): self.print_iter_metrics[key]=0  
-
-
-    # method for testing the computation of feature and batches without multiprocessing for debugging
-    def tester(self):
-        collater(self.train_dataset, self.config.utterances_per_speaker, self.config.num_timesteps, self.num_total_feats, self.config, self.feat_params)    
+        for key in self.print_iter_metrics.keys(): self.print_iter_metrics[key]=0

@@ -62,6 +62,7 @@ if __name__ == "__main__":
     parser.add_argument("-nl", "--num_layers", type=int, default=3, help= "Number of LSTM stacks in model.")
     parser.add_argument("-nt", "--num_timesteps", type=int, default=128, help= "Number of timesteps used in feature example fed to network")
     parser.add_argument('-tr','--tiny_run', default=False, action='store_true')
+    parser.add_argument('-eo','--eval_only', default=False, action='store_true')
     
     #feat params (bool, str, int)
     parser.add_argument('-ua','--use_audio', default=False, type=str2bool)
