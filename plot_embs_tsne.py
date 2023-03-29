@@ -9,7 +9,7 @@ import pandas as pd
 import sys
 sys.path.insert(1, '/homes/bdoc3/my_utils')
 from my_container import substring_inclusion, reorder_truncate, flatten_and_label
-from my_csv import vctk_id_gender_list
+# from my_csv import vctk_id_gender_list
 
 
 def get_vocalset_gender_techs():
@@ -170,7 +170,7 @@ if __name__ == '__main__':
     parser.add_argument("-us", "--use_subset", type=str, default='')
     parser.add_argument("-sn", "--sie_name", type=str, default='')
     parser.add_argument("-dn", "--ds_name", type=str, default='')
-    parser.add_argument("-pfe", "--pkl_fn_extras", type=str, default='')
+    parser.add_argument("-pfe", "--pkl_fn_extras", type=str, default='_100avg')
     parser.add_argument("-mi", "--max_ids", type=int, default=10)
     parser.add_argument("-mc", "--max_clips", type=int, default=100)
     parser.add_argument("-mt", "--max_techs", type=int, default=6)
@@ -239,8 +239,10 @@ if __name__ == '__main__':
         elif 'vctk' in config.ds_name.lower():
             gender_group_labels_arr = get_vctk_gender()
         else:
-            raise NotImplementedError
+            print('dataset not listed. Defaulting to all \'singers\'')
+            gender_group_labels_arr = np.asarray(['vocalist' for i in range(len(df['id']))])
         df['gender'] = gender_group_labels_arr
+    pdb.set_trace()
         
 
     print('Making and saving PCA plot...')
