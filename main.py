@@ -77,7 +77,7 @@ if __name__ == "__main__":
     parser.add_argument('-uaf','--use_aper_feats', default=False, type=str2bool)    
     parser.add_argument('-nm','--norm_method', default=None, type=str)
     parser.add_argument('-wp','--w2w_process', default='wav2world', type=str)
-    parser.add_argument('-drm','--dim_red_method', default='chandra', type=str)
+    parser.add_argument('-drm','--dim_red_method', default='chandna', type=str)
 
     # change the fmin/fmax values to 90/7600 
     parser.add_argument('-fmin', default=90, type=int) #50 chosen by me, 71 chosen by default params   
