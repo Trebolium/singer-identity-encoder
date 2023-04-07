@@ -5,8 +5,8 @@ import torch, os, time, datetime, sys, yaml, math, shutil, pdb
 from torch import nn
 from collections import OrderedDict
 import numpy as np
-from tester import collater
 from torch.utils.tensorboard import SummaryWriter
+
 from neural.scheduler import EarlyStopping
 from neural.eval import get_accuracy
 from my_plot import array_to_img

@@ -1,6 +1,0 @@
-fmax: 7600
-fmin: 90
-frame_size: 400
-hop_size: 160
-num_harm_feats: 40
-sr: 16000

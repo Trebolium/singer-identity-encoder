@@ -23,8 +23,7 @@ class Utterance:
         self.feat_params = feat_params
         if config.feats_type == 'mel':
             num_total_feats = feat_params['num_harm_feats']
-            self.mel_filter = mel(config.sampling_rate, config.fft_size, fmin=config.fmin, fmax=config.fmax, n_mels=num_total_feats).T
-            # self.mel_filter = mel(16000, 1024, fmin=90, fmax=7600, n_mels=80).T
+            self.mel_filter = mel(sr=config.sampling_rate, n_fft=config.fft_size, fmin=config.fmin, fmax=config.fmax, n_mels=num_total_feats).T
             self.min_level = np.exp(-100 / 20 * np.log(10))
             self.hop_size = int((self.config.frame_dur_ms/1000) * self.config.sampling_rate)
 
