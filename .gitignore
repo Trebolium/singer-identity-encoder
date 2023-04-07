@@ -7,6 +7,9 @@ train-clean-100/
 runs/
 nohup_logs/
 sorted_runs/
+default_trained/
+voice_embs_visuals_metadata/
+example_feats/
 *pycache__/
 *.pyc
 *.sw*

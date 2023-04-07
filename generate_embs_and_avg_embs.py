@@ -1,14 +1,9 @@
-import math, random, yaml, os, torch, sys, pickle, pdb
-from torch import nn
+import math, random, yaml, os, torch, sys, pickle
 import numpy as np
 from avg_emb_params import *
 sys.path.insert(1, SIE_ckpt_path)
 sys.path.insert(1, '/homes/bdoc3/my_utils')
 from utils import build_SIE_model
-from my_os import recursive_file_retrieval
-from my_arrays import fix_feat_length
-from tqdm import tqdm
-
 
 
 def process_all_vocalisations(SIE):
@@ -77,7 +72,7 @@ def process_all_vocalisations(SIE):
     return all_singer_embs, singer_meta_data
 
 
-def threshold_subdir_retrieval():
+def threshold_subdir_retrieval(subset):
     # collect all paths from subset that possess above min_tracks_pp variable
     multisong_voice_dirs = []
     subdir = os.path.join(ds_dir_path, subset)
@@ -97,7 +92,9 @@ def dir_data_handling():
     # creates directory for list
     SIE_name = os.path.basename(SIE_ckpt_path)
     ds_name = os.path.basename(ds_dir_path)
-    meta_dir = os.path.join('/homes/bdoc3/my_data/voice_embs_visuals_metadata', SIE_name, ds_name, subset)
+    meta_dir = os.path.join('./voice_embs_visuals_metadata', SIE_name, ds_name, subset)
+    import pdb
+    pdb.set_trace()
     if not os.path.exists(meta_dir):
         print(f'making dirs for: {meta_dir}')
         os.makedirs(meta_dir)
@@ -113,25 +110,27 @@ def dir_data_handling():
 
 if __name__ == '__main__':
 
-    use_cuda = torch.cuda.is_available()
-    device = torch.device(f'cuda:{which_cuda}' if use_cuda else 'cpu')
-    # get dst_dir, num feats used for training, and list of voice dirs
-    dst_dir, num_feats_used = dir_data_handling()
-    multisong_voice_dirs = threshold_subdir_retrieval()
+    subsets = ['train', 'val']
+    for subset in subsets:
+        use_cuda = torch.cuda.is_available()
+        device = torch.device(f'cuda:{which_cuda}' if use_cuda else 'cpu')
+        # get dst_dir, num feats used for training, and list of voice dirs
+        dst_dir, num_feats_used = dir_data_handling()
+        multisong_voice_dirs = threshold_subdir_retrieval(subset)
 
-    # shuffle list
-    this_seed = 0
-    random.seed(this_seed)
-    if max_num_singers == None:
-        random.shuffle(multisong_voice_dirs)
-    else:
-        multisong_voice_dirs = random.sample(multisong_voice_dirs, k=max_num_singers)
-    SIE = build_SIE_model(num_feats_used, device) # make sure model layer params in avg_emb_params are correct
-    all_singer_embs, singer_meta_data = process_all_vocalisations(SIE)
+        # shuffle list
+        this_seed = 0
+        random.seed(this_seed)
+        if max_num_singers == None:
+            random.shuffle(multisong_voice_dirs)
+        else:
+            multisong_voice_dirs = random.sample(multisong_voice_dirs, k=max_num_singers)
+        SIE = build_SIE_model(num_feats_used, device) # make sure model layer params in avg_emb_params are correct
+        all_singer_embs, singer_meta_data = process_all_vocalisations(SIE)
 
-    print('Saving data to disk...')
-    with open(os.path.join(dst_dir, f'voices_metadata_{max_tracks_pp}avg.pkl'), 'wb') as handle:
-        pickle.dump(singer_meta_data, handle)
+        print('Saving data to disk...')
+        with open(os.path.join(dst_dir, f'voices_metadata_{max_tracks_pp}avg.pkl'), 'wb') as handle:
+            pickle.dump(singer_meta_data, handle)
 
-    with open(os.path.join(dst_dir, f'voices_chunks_embs_{max_tracks_pp}avg.pkl'), 'wb') as handle:
-        pickle.dump(all_singer_embs, handle)
+        with open(os.path.join(dst_dir, f'voices_chunks_embs_{max_tracks_pp}avg.pkl'), 'wb') as handle:
+            pickle.dump(all_singer_embs, handle)

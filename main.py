@@ -1,10 +1,4 @@
 import sys
-
-# for some reason there is an unwatend path in sys.path. Must figure out how to remove this
-for i in sys.path:
-    if i == '/homes/bdoc3/wavenet_vocoder':
-        sys.path.remove(i)
-
 sys.path.insert(1, '/homes/bdoc3/my_utils')
 
 from utils import print_args
@@ -12,8 +6,6 @@ from solver import SingerIdentityEncoder
 from pathlib import Path
 import argparse
 import os
-import pdb
-
 
 
 def str2bool(v):
@@ -27,20 +19,20 @@ if __name__ == "__main__":
     
     # path specifications    
     # FIXME: rid and nrid are not intuitive. should be more like load and save folders
-    parser.add_argument("-rid", "--run_id", type=str, default='testRuns', help= "Name of destination model directory and associated files.\
+    parser.add_argument("-rid", "--run_id", type=str, default='default_trained', help= "Name of destination model directory and associated files.\
         If --new_run_id specified,this becomes the name of the model directory from which ckpt is extracted for pretrained weights")
     parser.add_argument("-nrid", "--new_run_id", type=str, default=None, help= \
         "If not None, this becomes the name of the new destination model directory and associated files, trained using ckpt from model specified in -run_id.")
-    parser.add_argument("-fd", "--feature_dir", type=Path, default="/homes/bdoc3/my_data/audio_data/deslienced_concat_DAMP", help= \
+    parser.add_argument("-fd", "--feature_dir", type=Path, default="example_feats", help= \
         "Path to directory of to feature dataset, which must contain train, val directories and feat_params.yaml file")
-    parser.add_argument("-pd", "--pitch_dir", type=Path, default='/import/c4dm-02/bdoc3/world_data/damp_80_16ms', help= \
+    parser.add_argument("-pd", "--pitch_dir", type=Path, default='pitch_feats', help= \
         "Path to directory to pitch feature dataset, which must contain train, val directories and feat_params.yaml file")    
-    parser.add_argument("-md", "--models_dir", type=Path, default="/homes/bdoc3/my_data/autovc_models/singer-identity-encoder/", help=\
+    parser.add_argument("-md", "--models_dir", type=Path, default="./", help=\
         "Define the parent directory for all model directories")
     parser.add_argument('-a','--ask', default=True, type=str2bool)
     
     #schedulers (ints)
-    parser.add_argument("-ugt", "--use_given_iters", type=str2bool, default=True, help= "Determines how long EarlyStopping waits before ceasing training")
+    parser.add_argument("-ugi", "--use_given_iters", type=str2bool, default=True, help= "Determines how long EarlyStopping waits before ceasing training")
     parser.add_argument("-ti", "--train_iters", type=int, default=2124, help= "Default values taken from Damp iters calculation")
     parser.add_argument("-vi", "--val_iters", type=int, default=308, help= "Default values taken from Damp iters calculation")
     parser.add_argument("-p", "--patience", type=int, default=50, help= "Determines how long EarlyStopping waits before ceasing training")
