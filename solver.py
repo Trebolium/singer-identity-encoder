@@ -89,9 +89,6 @@ class SingerIdentityEncoder:
             self.num_total_feats = self.num_total_feats + len(self.config.midi_range) + 1
 
         self.optimizer, self.model, self.this_model_dir, self.writer = self.config_model()
-        shutil.copyfile(os.path.join(os.getcwd(), 'solver.py'), os.path.join(self.this_model_dir, 'solver.py'))
-        shutil.copyfile(os.path.join(os.getcwd(), 'utils.py'), os.path.join(self.this_model_dir, 'utils.py'))
-        shutil.copyfile(os.path.join(os.getcwd(), 'data_objects/utterance.py'), os.path.join(self.this_model_dir, 'utterance.py'))
         os.makedirs(os.path.join(self.this_model_dir, 'input_tensor_plots'), exist_ok=True)
 
         self.backprop_losses = {'ge2e':0., 'pred':0., 'both':0., 'acc':0.}
