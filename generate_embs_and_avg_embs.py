@@ -92,9 +92,7 @@ def dir_data_handling():
     # creates directory for list
     SIE_name = os.path.basename(SIE_ckpt_path)
     ds_name = os.path.basename(ds_dir_path)
-    meta_dir = os.path.join('./voice_embs_visuals_metadata', SIE_name, ds_name, subset)
-    import pdb
-    pdb.set_trace()
+    meta_dir = os.path.join('../voice_embs_visuals_metadata', SIE_name, ds_name, subset)
     if not os.path.exists(meta_dir):
         print(f'making dirs for: {meta_dir}')
         os.makedirs(meta_dir)
