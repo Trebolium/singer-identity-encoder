@@ -33,11 +33,11 @@ if __name__ == "__main__":
     
     #schedulers (ints)
     parser.add_argument("-ugi", "--use_given_iters", type=str2bool, default=True, help= "Determines how long EarlyStopping waits before ceasing training")
-    parser.add_argument("-ti", "--train_iters", type=int, default=2124, help= "Default values taken from Damp iters calculation")
-    parser.add_argument("-vi", "--val_iters", type=int, default=308, help= "Default values taken from Damp iters calculation")
+    parser.add_argument("-ti", "--train_iters", type=int, default=40, help= "Default values taken from Damp iters calculation") # was 2124
+    parser.add_argument("-vi", "--val_iters", type=int, default=40, help= "Default values taken from Damp iters calculation") # was 308
     parser.add_argument("-p", "--patience", type=int, default=50, help= "Determines how long EarlyStopping waits before ceasing training")
     parser.add_argument("-et", "--earlystop_thresh", type=float, default=0.0, help= "Determines how long EarlyStopping waits before ceasing training")
-    parser.add_argument("-stp", "--stop_at_step", type=int, default=1000000, help= "Upper limit for number of steps before ceasing training")
+    parser.add_argument("-stp", "--stop_at_step", type=int, default=100, help= "Upper limit for number of steps before ceasing training")
 
     #framework setup (ints)
     parser.add_argument("-lri", "--learning_rate_init", type=int, default=1e-4, help= "Choose which cuda driver to use.")
