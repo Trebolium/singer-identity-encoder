@@ -267,7 +267,7 @@ class SingerIdentityEncoder:
             # if run_id has a name...
             if os.path.exists(run_id_path): #if the run_id model exist
                 if self.config.new_run_id == None: # and new_run_dir is defined
-                    raise Exception('Since your run_id exists, you must also define the new save location for in the new_run_id parameter')
+                    raise Exception('Your run_id name already exists. If this refers to the model you want to continue training from, you must define the new save location using the new_run_id parameter')
                 else:
                     print("Model \"%s\" found, loading params." % self.config.run_id)
                     checkpoint = torch.load(os.path.join(run_id_path, 'saved_model.pt'))
