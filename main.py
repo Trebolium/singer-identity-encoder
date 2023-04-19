@@ -19,7 +19,7 @@ if __name__ == "__main__":
     
     # path specifications    
     # FIXME: rid and nrid are not intuitive. should be more like load and save folders
-    parser.add_argument("-rid", "--run_id", type=str, default='default_trained', help= "Name of destination model directory and associated files.\
+    parser.add_argument("-rid", "--run_id", type=str, default='default_model', help= "Name of destination model directory and associated files.\
         If --new_run_id specified,this becomes the name of the model directory from which ckpt is extracted for pretrained weights")
     parser.add_argument("-nrid", "--new_run_id", type=str, default=None, help= \
         "If not None, this becomes the name of the new destination model directory and associated files, trained using ckpt from model specified in -run_id.")
@@ -27,7 +27,7 @@ if __name__ == "__main__":
         "Path to directory of to feature dataset, which must contain train, val directories and feat_params.yaml file")
     parser.add_argument("-pd", "--pitch_dir", type=Path, default='pitch_feats', help= \
         "Path to directory to pitch feature dataset, which must contain train, val directories and feat_params.yaml file")    
-    parser.add_argument("-md", "--models_dir", type=Path, default="./", help=\
+    parser.add_argument("-md", "--models_dir", type=Path, default="./sie_models", help=\
         "Define the parent directory for all model directories")
     parser.add_argument('-a','--ask', default=True, type=str2bool)
     
