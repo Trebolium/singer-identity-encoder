@@ -167,9 +167,9 @@ def get_damp_gender():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     # path specifications    
-    parser.add_argument("-us", "--use_subset", type=str, default='')
-    parser.add_argument("-sn", "--sie_name", type=str, default='')
-    parser.add_argument("-dn", "--ds_name", type=str, default='')
+    parser.add_argument("-us", "--use_subset", type=str, default='val')
+    parser.add_argument("-sn", "--sie_name", type=str, default='default_model')
+    parser.add_argument("-dn", "--ds_name", type=str, default='damp')
     parser.add_argument("-pfe", "--pkl_fn_extras", type=str, default='_100avg')
     parser.add_argument("-mi", "--max_ids", type=int, default=10)
     parser.add_argument("-mc", "--max_clips", type=int, default=100)
@@ -177,7 +177,7 @@ if __name__ == '__main__':
 
     config = parser.parse_args()
 
-    metad_dir = os.path.join('/homes/bdoc3/my_data/voice_embs_visuals_metadata', config.sie_name, config.ds_name, config.use_subset)
+    metad_dir = os.path.join('../voice_embs_visuals_metadata', config.sie_name, config.ds_name, config.use_subset)
     if not os.path.exists(metad_dir):
         os.makedirs(metad_dir)
 
