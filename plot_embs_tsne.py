@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import sys
-sys.path.insert(1, '/homes/bdoc3/my_utils')
+if os.path.abspath('../my_utils') not in sys.path: sys.path.insert(1, os.path.abspath('../my_utils'))
 from my_container import substring_inclusion, reorder_truncate, flatten_and_label
 # from my_csv import vctk_id_gender_list
 

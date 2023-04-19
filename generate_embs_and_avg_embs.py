@@ -2,7 +2,7 @@ import math, random, yaml, os, torch, sys, pickle
 import numpy as np
 from avg_emb_params import *
 sys.path.insert(1, SIE_ckpt_path)
-sys.path.insert(1, '/homes/bdoc3/my_utils')
+if os.path.abspath('../my_utils') not in sys.path: sys.path.insert(1, os.path.abspath('../my_utils'))
 from utils import build_SIE_model
 
 
