@@ -1,7 +1,7 @@
 import os
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
-SIE_ckpt_path = './default_trained'
+SIE_ckpt_path = './sie_models/default_model'
 
 # subset = 'train'
 ds_dir_path = 'example_feats'
