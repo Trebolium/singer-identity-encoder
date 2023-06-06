@@ -1,17 +1,45 @@
 import pdb, os
+import audiomentations
 from data_objects.random_cycler import RandomCycler
 from data_objects.speaker_batch import SpeakerBatch
 from data_objects.speaker import Speaker
 from torch.utils.data import Dataset, DataLoader
 from pathlib import Path
 from my_normalise import get_norm_stats
+from my_os import recursive_file_retrieval
 
 """Altered code from https://github.com/Trebolium/Real-Time-Voice-Cloning/tree/master/encoder/data_objects"""
+
+def get_augs():
+
+    _, fps = recursive_file_retrieval('/homes/bdoc3/my_data/audio_data/SamplicityM7Main-01-Wave32bit-44.1Khz-v1.1')
+    fps = [f for f in fps if not os.path.basename(f).startswith('.')]
+
+    augment_chain = audiomentations.Compose([
+        #noise
+        audiomentations.AddGaussianSNR(
+            min_snr_in_db=20,
+            max_snr_in_db=50,
+            p=1.0),
+        #filter
+        audiomentations.SevenBandParametricEQ(
+            p=1.0), # randomly set parameters, useful instead of other filters above
+        #reverb
+        # audiomentations.RoomSimulator(
+        #     p=0.5)
+        audiomentations.ApplyImpulseResponse(fps, p=0.5),
+
+    ])
+
+    return augment_chain
 
 
 # collects paths to utterances of speakers - does not collect the data itself
 class SpeakerVerificationDataset(Dataset):
     def __init__(self, datasets_root, config, feat_params, num_total_feats, norm_stats=None):
+
+        if config.use_audio:
+            augment_chain = get_augs()
 
         self.root = datasets_root
         speaker_dirs = [f for f in self.root.glob("*") if f.is_dir() and not str(f).startswith('.') and not os.path.basename(f).startswith('.')]
@@ -23,7 +51,7 @@ class SpeakerVerificationDataset(Dataset):
             if config.norm_method == 'schluter' or config.norm_method == 'global_unit_var':
                 norm_stats = get_norm_stats(datasets_root, num_total_feats)
         self.norm_stats = norm_stats
-        self.speakers = [(Speaker(speaker_dir, config, feat_params, norm_stats), i) for i, speaker_dir in enumerate(speaker_dirs)]
+        self.speakers = [(Speaker(speaker_dir, config, feat_params, norm_stats, augment_chain), i) for i, speaker_dir in enumerate(speaker_dirs)]
         self.num_speakers = len(self.speakers)
         self.speaker_cycler = RandomCycler(self.speakers)
         # pdb.set_trace()
