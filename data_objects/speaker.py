@@ -8,7 +8,8 @@ import pdb
 
 # Contains the set of utterances of a single speaker
 class Speaker:
-    def __init__(self, root: Path, config, feat_params, norm_stats):
+    def __init__(self, root: Path, config, feat_params, norm_stats, augment_chain):
+        self.augment_chain = augment_chain
         self.norm_stats = norm_stats
         self.root = root
         self.name = root.name
@@ -19,12 +20,12 @@ class Speaker:
         
     def _load_utterances(self):
         if self.config.use_audio == True:
-            ext = '.wav'
+            ext = '.m4a'
         else:
             ext = '.npy'
         """ Utterance stores mel and wav paths, but does not make them npy objects until random_partial() is called"""
         spkr_uttrs_list = [f.name[:-4] for f in self.root.glob('*' +ext)]
-        self.utterances = [Utterance(self.root.joinpath(f+ext), f+ext, self.config, self.feat_params, self.norm_stats) for f in spkr_uttrs_list]
+        self.utterances = [Utterance(self.root.joinpath(f+ext), f+ext, self.config, self.feat_params, self.norm_stats, self.augment_chain) for f in spkr_uttrs_list]
         try:
             self.utterance_cycler = RandomCycler(self.utterances)
         except Exception as e:
