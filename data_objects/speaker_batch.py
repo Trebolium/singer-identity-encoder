@@ -1,17 +1,49 @@
 import numpy as np
 from typing import List
 
-"""Minimally altered code from https://github.com/Trebolium/Real-Time-Voice-Cloning/tree/master/encoder/data_objects"""
+"""Code from https://github.com/CorentinJ/Real-Time-Voice-Cloning/tree/master/encoder/data_objects"""
 
 
 class SpeakerBatch:
-    def __init__(self, speakers_data: List, utterances_per_speaker: int, n_frames: int, num_total_feats):        
-        # print("Speaker Batch initiated") 
-        """ dict of speaker lists (uttr objects, evenly spliced uttr_features)"""
-        self.partials = {s.name: s.random_partial(utterances_per_speaker, n_frames, num_total_feats) for s,_ in speakers_data}
+    """
+    Represents a batch of speakers' data for training.
+
+    Args:
+        speakers_data (List): List of tuples containing Speaker objects and their indices.
+        utterances_per_speaker (int): Number of utterances per speaker.
+        n_frames (int): Number of frames.
+        num_total_feats (int): Total number of features.
+
+    Attributes:
+        partials (dict): Dictionary of speaker lists (utterance objects, evenly spliced utterance features).
+        data (tuple): Tuple containing input data array and target data array.
+
+    """
+
+    def __init__(
+        self,
+        speakers_data: List,
+        utterances_per_speaker: int,
+        n_frames: int,
+        num_total_feats: int,
+    ):
+        """
+        Initialize SpeakerBatch with the given parameters.
+        """
+        # print("Speaker Batch initiated")
+        self.partials = {
+            s.name: s.random_partial(utterances_per_speaker, n_frames, num_total_feats)
+            for s, _ in speakers_data
+        }
         # print("utterances per speaker generated")
-        """ Array of shape (n_speakers * n_utterances, n_frames, mel_n), e.g. for 3 speakers with
-        4 utterances each of 160 frames of 40 mel coefficients: (12, 160, 40)"""
-        x_data = np.array([uttr_data[1] for s,_ in speakers_data for uttr_data in self.partials[s.name]])
-        y_data = np.array([speakers_data[i//utterances_per_speaker][1] for i in range(len(x_data))])
+        x_data = np.array(
+            [
+                uttr_data[1]
+                for s, _ in speakers_data
+                for uttr_data in self.partials[s.name]
+            ]
+        )
+        y_data = np.array(
+            [speakers_data[i // utterances_per_speaker][1] for i in range(len(x_data))]
+        )
         self.data = x_data, y_data

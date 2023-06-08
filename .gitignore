@@ -6,6 +6,7 @@ venvsingerenc/
 train-clean-100/
 runs/
 nohup_logs/
+sie_models/
 sorted_runs/
 default_trained/
 voice_embs_visuals_metadata/
