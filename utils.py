@@ -2,6 +2,7 @@ from pathlib import Path
 import argparse
 import os
 import numpy as np
+import pdb
 from collections import OrderedDict
 import torch
 from torch import nn
@@ -206,7 +207,7 @@ class SingerIdEncoder(nn.Module):
         return loss, eer
 
 
-def build_SIE_model(total_num_feats, device):
+def build_SIE_model(total_num_feats, device, sie_path=''):
     """
     Loads model parameters from model path, or loads an untrained model
     Designed specifically for specific models due to following assumptions:
@@ -224,9 +225,17 @@ def build_SIE_model(total_num_feats, device):
         NB: All variables are currently provided from the parameter python file
 
     """
+    pdb.set_trace()
     # load checkpoint, and dependant strings
     print("Building model...\n")
     loss_device = torch.device("cpu")
+
+    if sie_path != '':
+        SIE_ckpt_path = sie_path
+    if os.path.basename(SIE_ckpt_path) == 'qianPretrainedSie_LibriVox1_Mels80' or os.path.basename(SIE_ckpt_path) == 'qianPretrainedSie_LibriVox1_Mels80':
+        qians_pretrained_model = True
+    else:
+        qians_pretrained_model = False
 
     if SIE_ckpt_path != None:
         print("using trained model")
@@ -236,7 +245,7 @@ def build_SIE_model(total_num_feats, device):
         new_state_dict = OrderedDict()
 
         # verify the number of features (sie_num_feats_used) model was trained on matches our intended use
-        if SIE_ckpt_path.endswith("autoVc_pretrainedOnVctk_Mels80"):
+        if qians_pretrained_model:
             model_state = "model_b"
             sie_num_feats_used = sie_checkpoint[model_state][
                 "module.lstm.weight_ih_l0"
@@ -250,14 +259,14 @@ def build_SIE_model(total_num_feats, device):
 
         sie = SingerIdEncoder(device, loss_device, sie_num_feats_used)
         # add initiated weights from freshly loaded SIE to new_state_dict
-        if "autoVc_pretrained" in SIE_ckpt_path:
+        if qians_pretrained_model:
             new_state_dict["similarity_weight"] = sie.similarity_weight
             new_state_dict["similarity_bias"] = sie.similarity_bias
 
         # incrementally update new_state_dict with checkpoint params, and load
         for key, val in sie_checkpoint[model_state].items():
             # condtional if a certain recognised type of SIE, keys() will be different
-            if SIE_ckpt_path.endswith("autoVc_pretrainedOnVctk_Mels80"):
+            if qians_pretrained_model:
                 key = key[7:]  # gets right of the substring 'module'
                 if key.startswith("embedding"):
                     key = "linear." + key[10:]

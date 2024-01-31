@@ -143,7 +143,7 @@ def dir_data_handling():
 
 
 if __name__ == "__main__":
-    subsets = ["train", "val"]
+    
     for subset in subsets:
         use_cuda = torch.cuda.is_available()
         device = torch.device(f"cuda:{which_cuda}" if use_cuda else "cpu")
@@ -159,7 +159,7 @@ if __name__ == "__main__":
                 multisong_voice_dirs, k=max_num_singers
             )
         SIE = build_SIE_model(
-            num_feats_used, device
+            num_feats_used, device, SIE_ckpt_path
         )
         all_singer_embs, singer_meta_data = process_all_vocalisations(SIE)
 

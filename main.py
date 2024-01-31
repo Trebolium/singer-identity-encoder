@@ -1,21 +1,26 @@
 """
+Module: main
+Author: Brendan O'Connor
+Date: June 5th, 2023
+
 Description: This module processes a set of arguments as appropriate configurations,
 creates destination directories, and calls the singer identity encoder model for training.
-
-Author: Brendan O'Connor
-Date: June 2023
 """
 
 import argparse
 import os
 from pathlib import Path
 import sys
+import warnings
 
 if os.path.abspath('../my_utils') not in sys.path:
     sys.path.insert(1, os.path.abspath('../my_utils'))
 
 from utils import print_args
 from solver import SieEncoderTrainer
+
+warnings.filterwarnings("ignore", message="PySoundFile failed. Trying audioread instead.")
+
 
 def str2bool(v):
     """
@@ -80,7 +85,7 @@ if __name__ == "__main__":
         "--use_given_iters",
         type=str2bool,
         default=True,
-        help="Determines how long EarlyStopping waits before ceasing training",
+        help="Uses the arguments for train_iters and val_iters. Otherwise automatically calculated",
     )
     parser.add_argument(
         "-ti",
@@ -194,6 +199,8 @@ if __name__ == "__main__":
     )
     parser.add_argument("-tr", "--tiny_run", default=False, action="store_true")
     parser.add_argument("-eo", "--eval_only", default=False, action="store_true")
+    parser.add_argument("-ri", "--restart_iters", default=False, action="store_true")
+    parser.add_argument("-uqp", "--using_qian_pretrained", default=False, action="store_true")
 
     # feat params (bool, str, int)
     parser.add_argument("-ua", "--use_audio", default=False, type=str2bool)

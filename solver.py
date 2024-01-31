@@ -60,6 +60,10 @@ class SieEncoderTrainer:
         self.train_current_step = 0
         self.val_current_step = 0
         self.config = config
+
+        # if str(config.which_cuda) not in os.environ["CUDA_VISIBLE_DEVICES"]: 
+        #     os.environ["CUDA_VISIBLE_DEVICES"] = str(config.which_cuda)
+        
         self.device = torch.device(
             f"cuda:{self.config.which_cuda}" if torch.cuda.is_available() else "cpu"
         )
@@ -171,9 +175,10 @@ class SieEncoderTrainer:
         _, train_fps = recursive_file_retrieval(
             os.path.join(config.feature_dir, subset)
         )
-        if "damp" in str(config.feature_dir):
+        # raise NotImplementedError ("Refactor code to not be dependant on substring in ds_path")
+        if "damp" in str(config.feature_dir).lower():
             chunks_per_track = 30
-        elif "vctk" in str(config.feature_dir):
+        elif "vctk" in str(config.feature_dir).lower():
             chunks_per_track = 1
         avg_uttrs_per_spkr = len(train_fps) / num_train_subdirs
         train_iters = int(
@@ -193,12 +198,11 @@ class SieEncoderTrainer:
         # pdb.set_trace()
         while training_complete == False:
             if self.config.eval_only:
-                # pdb.set_trace()
                 mode = "val"
                 self.model.eval()
                 with torch.no_grad():
                     self.batch_iterate(self.val_loader, self.val_current_step, mode)
-                    break
+                    training_complete = True
 
             else:
                 mode = "train"
@@ -371,22 +375,23 @@ class SieEncoderTrainer:
                     raise Exception(new_model_name_error)
                 else:
                     print('Model "%s" found, loading params.' % self.config.run_id)
-                    checkpoint = torch.load(os.path.join(run_id_path, "saved_model.pt"), map_location='cpu')
-                    if self.config.run_id.endswith("autoVc_pretrainedOnVctk_Mels80"):
+                    checkpoint = torch.load(os.path.join(run_id_path), map_location='cpu')
+                    if self.config.using_qian_pretrained:
                         model_state = "model_b"
                         self.train_current_step = 0
-                        number_feat_ins = checkpoint[model_state][
-                            "module.lstm.weight_ih_l0"
-                        ].shape[1]
+                        number_feat_ins = checkpoint[model_state]["module.lstm.weight_ih_l0"].shape[1]
                     else:
                         model_state = "model_state"
-                        self.train_current_step = checkpoint["step"]
-                        number_feat_ins = checkpoint[model_state][
-                            "lstm.weight_ih_l0"
-                        ].shape[1]
-                    # num_class_outs = checkpoint["model_state"]['class_layer.weight'].shape[0]
 
-                    assert number_feat_ins == self.num_total_feats
+                        if self.config.restart_iters:
+                            self.train_current_step = 0
+                        else:
+                            self.train_current_step = checkpoint["step"]
+
+                        number_feat_ins = checkpoint[model_state]["lstm.weight_ih_l0"].shape[1]
+
+                    if not number_feat_ins == self.num_total_feats:
+                        raise Exception('Feature dimensions from previous model does not match currect features dims.')
                     model = SpeakerEncoder(
                         self.device,
                         self.loss_device,
@@ -401,16 +406,14 @@ class SieEncoderTrainer:
                     )
 
                     new_state_dict = OrderedDict()
-                    if self.config.run_id.endswith("autoVc_pretrainedOnVctk_Mels80"):
+                    if self.config.using_qian_pretrained:
                         new_state_dict["similarity_weight"] = model.similarity_weight
                         new_state_dict["similarity_bias"] = model.similarity_bias
                     for key, val in checkpoint[model_state].items():
                         # if laoding for new dataset, makes no sense to transfer weights from previous class layer
                         if key.startswith("class_layer"):
                             continue
-                        if self.config.run_id.endswith(
-                            "autoVc_pretrainedOnVctk_Mels80"
-                        ):
+                        if self.config.using_qian_pretrained:
                             key = key[7:]
                             if key.startswith("embedding"):
                                 key = "linear." + key[10:]

@@ -10,6 +10,7 @@ Minimally altered code from https://github.com/CorentinJ/Real-Time-Voice-Cloning
 import math
 from pathlib import Path
 import pdb
+import warnings
 
 from librosa.filters import mel
 import numpy as np
@@ -46,6 +47,7 @@ class Utterance:
         self.featpath = featpath
         self.audiopath = audiopath
         self.config = config
+        self.augment_chain = augment_chain
         self.feat_params = feat_params
         if config.feats_type == "mel":
             num_total_feats = feat_params["num_harm_feats"]
@@ -106,26 +108,23 @@ class Utterance:
 
         """
         if self.config.use_audio:
+
             y = audio_io(self.featpath, self.feat_params["sr"])
             samps_per_frame = (
                 self.feat_params["frame_dur_ms"] / 1000
             ) * self.feat_params["sr"]
             required_size = int(samps_per_frame * n_frames) - 1
             if y.shape[0] < 1:
+                if self.config.feat_type == 'mel':
+                    feat_dim = self.feat_params["num_harm_feats"]
+                elif self.config.feat_type == 'world':
+                    feat_dim = self.feat_params["num_harm_feats"] + self.feat_params["num_aper_feats"] + 2
                 # '+2' at end is for f0_estimation vectors
-                frames = np.zeros(
-                    (
-                        n_frames,
-                        (
-                            self.feat_params["num_harm_feats"]
-                            + self.feat_params["num_aper_feats"]
-                            + 2
-                        ),
-                    )
-                )
+                frames = np.zeros((n_frames, feat_dim))
                 start_end = (0, required_size)
             else:
-                counter = 0
+                y = self.augment_chain(y, self.feat_params["sr"])
+                counter = 0 
                 looper = True
                 while looper:
                     if counter < 10:
@@ -202,7 +201,7 @@ class Utterance:
                 frames, start_end = self.get_chunk(frames, n_frames)
             except Exception as e:
                 print(e)
-                pdb.set_trace
+                pdb.set_trace()
 
         # print('another utterance processed', (time.time() - stime))
         return frames[:n_frames], start_end
