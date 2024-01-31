@@ -1,11 +1,13 @@
-import sys, os
-if os.path.abspath('../my_utils') not in sys.path: sys.path.insert(1, os.path.abspath('../my_utils'))
+import sys, os, argparse
+
+this_script_dir = os.path.dirname(os.path.abspath(__file__))
+super_dir = os.path.dirname(this_script_dir)
+my_utils_dir = os.path.join(super_dir, 'my_utils')
+if os.path.abspath(my_utils_dir) not in sys.path: sys.path.insert(1, os.path.abspath(my_utils_dir))
 
 from utils import print_args
 from solver import SingerIdentityEncoder
 from pathlib import Path
-import argparse
-import os
 
 
 def str2bool(v):
@@ -23,18 +25,18 @@ if __name__ == "__main__":
         If --new_run_id specified,this becomes the name of the model directory from which ckpt is extracted for pretrained weights")
     parser.add_argument("-nrid", "--new_run_id", type=str, default=None, help= \
         "If not None, this becomes the name of the new destination model directory and associated files, trained using ckpt from model specified in -run_id.")
-    parser.add_argument("-fd", "--feature_dir", type=Path, default="example_feats", help= \
+    parser.add_argument("-fd", "--feature_dir", type=Path, default=os.path.join(this_script_dir, 'damp_example_feats'), help= \
         "Path to directory of to feature dataset, which must contain train, val directories and feat_params.yaml file")
-    parser.add_argument("-pd", "--pitch_dir", type=Path, default='pitch_feats', help= \
+    parser.add_argument("-pd", "--pitch_dir", type=Path, default=os.path.join(this_script_dir, 'pitch_feats'), help= \
         "Path to directory to pitch feature dataset, which must contain train, val directories and feat_params.yaml file")    
-    parser.add_argument("-md", "--models_dir", type=Path, default="./sie_models", help=\
+    parser.add_argument("-md", "--models_dir", type=Path, default=os.path.join(this_script_dir, 'sie_models'), help=\
         "Define the parent directory for all model directories")
     parser.add_argument('-a','--ask', default=True, type=str2bool)
     
     #schedulers (ints)
     parser.add_argument("-ugi", "--use_given_iters", type=str2bool, default=True, help= "Determines how long EarlyStopping waits before ceasing training")
-    parser.add_argument("-ti", "--train_iters", type=int, default=40, help= "Default values taken from Damp iters calculation") # was 2124
-    parser.add_argument("-vi", "--val_iters", type=int, default=40, help= "Default values taken from Damp iters calculation") # was 308
+    parser.add_argument("-ti", "--train_iters", type=int, default=40, help= "Number of training steps before moving to evaluation") # was 2124
+    parser.add_argument("-vi", "--val_iters", type=int, default=40, help= "Number of batches used to evaluate the model") # was 308
     parser.add_argument("-p", "--patience", type=int, default=50, help= "Determines how long EarlyStopping waits before ceasing training")
     parser.add_argument("-et", "--earlystop_thresh", type=float, default=0.0, help= "Determines how long EarlyStopping waits before ceasing training")
     parser.add_argument("-stp", "--stop_at_step", type=int, default=100, help= "Upper limit for number of steps before ceasing training")

@@ -1,8 +1,14 @@
 import math, random, yaml, os, torch, sys, pickle
 import numpy as np
+
 from avg_emb_params import *
 sys.path.insert(1, SIE_ckpt_path)
-if os.path.abspath('../my_utils') not in sys.path: sys.path.insert(1, os.path.abspath('../my_utils'))
+
+this_script_dir = os.path.dirname(os.path.abspath(__file__))
+super_dir = os.path.dirname(this_script_dir)
+my_utils_dir = os.path.join(super_dir, 'my_utils')
+if os.path.abspath(my_utils_dir) not in sys.path: sys.path.insert(1, os.path.abspath(my_utils_dir))
+
 from utils import build_SIE_model
 
 
@@ -92,7 +98,7 @@ def dir_data_handling():
     # creates directory for list
     SIE_name = os.path.basename(SIE_ckpt_path)
     ds_name = os.path.basename(ds_dir_path)
-    meta_dir = os.path.join('../voice_embs_visuals_metadata', SIE_name, ds_name, subset)
+    meta_dir = os.path.join(super_dir, 'voice_embs_visuals_metadata', SIE_name, ds_name, subset)
     if not os.path.exists(meta_dir):
         print(f'making dirs for: {meta_dir}')
         os.makedirs(meta_dir)

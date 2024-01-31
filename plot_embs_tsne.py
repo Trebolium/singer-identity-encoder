@@ -7,9 +7,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import sys
-if os.path.abspath('../my_utils') not in sys.path: sys.path.insert(1, os.path.abspath('../my_utils'))
+
+this_script_dir = os.path.dirname(os.path.abspath(__file__))
+super_dir = os.path.dirname(this_script_dir)
+my_utils_dir = os.path.join(super_dir, 'my_utils')
+if os.path.abspath(my_utils_dir) not in sys.path: sys.path.insert(1, os.path.abspath(my_utils_dir))
+
 from my_container import substring_inclusion, reorder_truncate, flatten_and_label
-# from my_csv import vctk_id_gender_list
 
 
 def get_vocalset_gender_techs():
@@ -169,15 +173,15 @@ if __name__ == '__main__':
     # path specifications    
     parser.add_argument("-us", "--use_subset", type=str, default='val')
     parser.add_argument("-sn", "--sie_name", type=str, default='default_model')
-    parser.add_argument("-dn", "--ds_name", type=str, default='damp')
+    parser.add_argument("-dn", "--ds_name", type=str, default='damp_example_feats')
     parser.add_argument("-pfe", "--pkl_fn_extras", type=str, default='_100avg')
-    parser.add_argument("-mi", "--max_ids", type=int, default=10)
+    parser.add_argument("-mi", "--max_ids", type=int, default=1)
     parser.add_argument("-mc", "--max_clips", type=int, default=100)
     parser.add_argument("-mt", "--max_techs", type=int, default=6)
 
     config = parser.parse_args()
 
-    metad_dir = os.path.join('../voice_embs_visuals_metadata', config.sie_name, config.ds_name, config.use_subset)
+    metad_dir = os.path.join(super_dir, 'voice_embs_visuals_metadata', config.sie_name, config.ds_name, config.use_subset)
     if not os.path.exists(metad_dir):
         os.makedirs(metad_dir)
 
@@ -242,8 +246,7 @@ if __name__ == '__main__':
             print('dataset not listed. Defaulting to all \'singers\'')
             gender_group_labels_arr = np.asarray(['vocalist' for i in range(len(df['id']))])
         df['gender'] = gender_group_labels_arr
-    pdb.set_trace()
-        
+         
 
     print('Making and saving PCA plot...')
     pca = PCA(n_components=2)
@@ -287,51 +290,3 @@ if __name__ == '__main__':
         fp = os.path.join(metad_dir, f'id-technique-2tsne{config.pkl_fn_extras}.png')    
         print('saving pca plot as: ', fp)
         plt.savefig(fp)
-    # exit(0)
-
-    # for i in range(len(all_labels_arrs)):
-    #     label_arr = all_labels_arrs[i]
-    #     label_name = all_label_names[i]
-    #     num_classes = len(set(label_arr))
-    #     # num_classes = all_labels_class_sizes[i]
-
-    #     #FIXME: Since we are not using 
-
-    #     #     voice_embs_classes, label_arr = reorder_truncate(all_singer_embs_arr, label_arr, num_classes)
-    #     #     return voice_embs_classes, label_arr
-    #     df['y'] = label_arr.astype(int)
-
-    #     # print('Explained variation per principal component: {}'.format(pca.explained_variance_ratio_))
-    #     plt.figure(figsize=(16,10))
-    #     try:
-    #         pdb.set_trace()
-    #         # sns.scatterplot(x="pca-one", y="pca-two", hue="y", palette=sns.color_palette("hls", num_classes), data=df, legend="full", alpha=0.3)
-    #         sns.scatterplot(
-    #             x="pca-one", y="pca-two",
-    #             hue="y",
-    #             palette=sns.color_palette("hls", num_classes),
-    #             data=df,
-    #             legend="full",
-    #             alpha=0.3
-    #             )
-    #     except:
-    #         pdb.set_trace()
-
-    #     # print('saving pca plot as: ', os.path.join(metad_dir, config.ds_name, f'{config.use_subset}-{label_name}-2dPca.png'))
-    #     print('saving pca plot as: ', os.path.join(metad_dir, f'{label_name}-{config.max_ids}voices-2dPca.png'))
-    #     plt.savefig(os.path.join(metad_dir, f'{label_name}-{config.max_ids}voices-2dPca.png'))
-
-
-    #     print('making and saving plot...')
-    #     plt.figure(figsize=(16,10))
-    #     sns.scatterplot(
-    #         x="tsne-2d-one", y="tsne-2d-two",
-    #         hue="y",
-    #         palette=sns.color_palette("hls", num_classes),
-    #         data=df,
-    #         legend="full",
-    #         alpha=0.3
-    #         )
-            
-    #     print('saving pca plot as: ', os.path.join(metad_dir, f'{label_name}-{config.max_ids}voices-2dTsne.png'))
-    #     plt.savefig(os.path.join(metad_dir, f'{label_name}-{config.max_ids}voices-2dTsne.png'))

@@ -1,7 +1,12 @@
-import os, time, sys, argparse
+import os, time, sys, argparse, pdb
 from librosa.filters import mel
 import numpy as np
-if os.path.abspath('../my_utils') not in sys.path: sys.path.insert(1, os.path.abspath('../my_utils'))
+
+this_script_dir = os.path.dirname(os.path.abspath(__file__))
+super_dir = os.path.dirname(this_script_dir)
+my_utils_dir = os.path.join(super_dir, 'my_utils')
+if os.path.abspath(my_utils_dir) not in sys.path: sys.path.insert(1, os.path.abspath(my_utils_dir))
+
 from my_os import recursive_file_retrieval
 from my_audio.utils import audio2feats_process
 from my_container import substring_exclusion, substring_inclusion, balance_by_strings, separate_by_starting_substring
@@ -78,8 +83,8 @@ def vocalset_filter(rootDir, config):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='params for converting audio to spectral using world', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-dd','--dst_dir', default='example_feats', type=str)
-    parser.add_argument('-sd','--src_dir', default='example_audio', type=str)
+    parser.add_argument('-dd','--dst_dir', default=os.path.join(this_script_dir, 'damp_example_feats'), type=str)
+    parser.add_argument('-sd','--src_dir', default=os.path.join(this_script_dir, 'damp_example_audio'), type=str)
     parser.add_argument('-de','--dst_ext', default='.npy', type=str)
     parser.add_argument('-fd','--find_diff', default=1, type=int)
     #multithread
