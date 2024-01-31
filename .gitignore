@@ -15,3 +15,5 @@ example_feats/
 *.pyc
 *.sw*
 *.log
+*.pkl
+eval_study3_stimuli_VIE_conversions.py
