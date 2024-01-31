@@ -21,9 +21,7 @@ from my_container import flatten_and_label, reorder_truncate, substring_inclusio
 from my_csv import vctk_id_gender_list
 
 def get_vocalset_gender_techs():
-    """
-    Get gender and technique labels for vocalset dataset.
-    """
+    """Generate two separate lists grouped by VocalSet gender and VocalSet techniques"""
     singing_techniques = [
         "belt",
         "lip_trill",
@@ -63,9 +61,42 @@ def get_vocalset_gender_techs():
     technique_group_labels_arr = np.asarray(technique_group_labels_arr)
     all_labels_arrs.append(technique_group_labels_arr)
     all_label_names.append("singing_technique")
-    all_labels_class_sizes.append(config.max_num_techs)
+    all_labels_class_sizes.append(config.max_techs)
     return gender_group_labels_arr, technique_group_labels_arr
 
+def get_NUS_gender():
+
+    csv_path = "/homes/bdoc3/my_data/text_data/NUS/NUS_genders.csv"
+    f = open(csv_path, "r")
+    reader = csv.reader(f)
+    header = next(reader)
+    singer_meta = [row for row in reader]
+    perf_list = [row[0] for row in singer_meta]
+    gender_list = [row[1] for row in singer_meta]
+    gender_group_labels_arr = []
+    for voice_meta in metad_by_singer_list:
+        uttrs_fps = voice_meta[2:]
+        for fp in uttrs_fps:
+            track_name = os.path.basename(fp)[:-4]
+            singer_id = track_name.split("_")[0]
+            try:
+                idx = perf_list.index(singer_id)
+                gender = gender_list[idx]
+            except:
+                pdb.set_trace()
+            if "m" in gender.lower():
+                gender_group_labels_arr.append("male")
+            elif "f" in gender.lower():
+                gender_group_labels_arr.append("female")
+            else:
+                raise Exception(
+                    f"Gender value not recognised for excerpt {track_name} in csv row {idx}"
+                )
+    gender_group_labels_arr = np.asarray(gender_group_labels_arr)
+    all_labels_arrs.append(gender_group_labels_arr)
+    all_label_names.append("gender")
+    all_labels_class_sizes.append(1)
+    return gender_group_labels_arr
 
 def get_vocadito_gender():
     """
@@ -277,6 +308,7 @@ if __name__ == "__main__":
     df = pd.DataFrame(all_singer_embs_arr, columns=feat_cols)
     df["id"] = id_group_names
 
+    # pdb.set_trace()
     # get more labels, depending on dataset used
     if "vocalset" in config.ds_name.lower():
         (
@@ -292,6 +324,8 @@ if __name__ == "__main__":
             gender_group_labels_arr = get_vocadito_gender()
         elif "vctk" in config.ds_name.lower():
             gender_group_labels_arr = get_vctk_gender()
+        elif "NUS" in config.ds_name:
+            gender_group_labels_arr = get_NUS_gender()
         else:
             print("dataset not listed. Defaulting to all 'singers'")
             gender_group_labels_arr = np.asarray(
