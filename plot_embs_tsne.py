@@ -55,9 +55,8 @@ def get_vocalset_gender_techs():
     return gender_group_labels_arr, technique_group_labels_arr
 
 
-def get_vocadito_gender():
+def get_vocadito_gender(csv_path):
     gender_group_labels_arr = []
-    csv_path = '/homes/bdoc3/my_data/text_data/vocadito/vocadito_metadata.csv'
     f = open(csv_path, 'r')
     reader = csv.reader(f)
     header = next(reader)
@@ -93,38 +92,12 @@ def get_vocadito_gender():
     return gender_group_labels_arr
 
 
-def get_vctk_gender():
-    id_list, gender_list = vctk_id_gender_list()
-    gender_group_labels_arr = []
-    for voice_meta in metad_by_singer_list:
-        uttrs_fps = voice_meta[2:]
-        for fp in uttrs_fps:
-            track_name = os.path.basename(fp)[:-4]
-            singer_id = track_name.split('_')[0]
-            idx = id_list.index(singer_id)
-
-            gender = gender_list[idx]
-            if 'm' in gender.lower():
-                gender_group_labels_arr.append('male')
-            elif 'f' in gender.lower():
-                gender_group_labels_arr.append('female')
-            else:
-                raise Exception(f'Gender value not recognised for excerpt {track_name} in csv row {idx}')
-
-    gender_group_labels_arr = np.asarray(gender_group_labels_arr)
-    all_labels_arrs.append(gender_group_labels_arr)
-    all_label_names.append('gender')
-    all_labels_class_sizes.append(1)
-    return gender_group_labels_arr
-
-
-def get_damp_gender():
+def get_damp_gender(csv_path):
     """
     Get entries from gender csv file
     Add these to a gender array as 0, 1 or 2 if entry is None
     """
     gender_group_labels_arr = []
-    csv_path = '/homes/bdoc3/my_data/text_data/damp/intonation_metadata.csv'
     f = open(csv_path, 'r')
     reader = csv.reader(f)
     header = next(reader)
@@ -174,12 +147,13 @@ if __name__ == '__main__':
     parser.add_argument("-us", "--use_subset", type=str, default='val')
     parser.add_argument("-sn", "--sie_name", type=str, default='default_model')
     parser.add_argument("-dn", "--ds_name", type=str, default='damp_example_feats')
+    parser.add_argument("-gcp", "--gender_csv_path", type=str, default='example_metadata.csv')
     parser.add_argument("-pfe", "--pkl_fn_extras", type=str, default='_100avg')
     parser.add_argument("-mi", "--max_ids", type=int, default=1)
     parser.add_argument("-mc", "--max_clips", type=int, default=100)
     parser.add_argument("-mt", "--max_techs", type=int, default=6)
-
     config = parser.parse_args()
+    config.gender_csv_path = os.path.join(this_script_dir, config.gender_csv_path)
 
     metad_dir = os.path.join(super_dir, 'voice_embs_visuals_metadata', config.sie_name, config.ds_name, config.use_subset)
     if not os.path.exists(metad_dir):
@@ -237,11 +211,9 @@ if __name__ == '__main__':
         df['technique'] = technique_group_labels_arr
     else:
         if 'damp' in config.ds_name.lower():
-            gender_group_labels_arr = get_damp_gender()
+            gender_group_labels_arr = get_damp_gender(config.gender_csv_path)
         elif 'vocadito' in config.ds_name.lower():
-            gender_group_labels_arr = get_vocadito_gender()
-        elif 'vctk' in config.ds_name.lower():
-            gender_group_labels_arr = get_vctk_gender()
+            gender_group_labels_arr = get_vocadito_gender(config.gender_csv_path)
         else:
             print('dataset not listed. Defaulting to all \'singers\'')
             gender_group_labels_arr = np.asarray(['vocalist' for i in range(len(df['id']))])
