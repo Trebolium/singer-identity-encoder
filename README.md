@@ -1,6 +1,6 @@
 # Singer Identity Embedding Encoder
 
-This repository presents an extension of [CorentinJ's work](https://github.com/CorentinJ/Real-Time-Voice-Cloning/tree/master/encoder) on voice cloning. It consists of a singer verification network, the archtecture of which is based on the description of [Wan et. al, 2018](https://ieeexplore.ieee.org/document/8462665) who proposed the Generalised End-to-End loss as a suitable function for the purpose of contrastive learning.
+This repository presents an extension of [CorentinJ's work](https://github.com/CorentinJ/Real-Time-Voice-Cloning/tree/master/encoder) on voice cloning. It consists of a singer verification network, the archtecture of which is based on the description of [(Wan et. al, 2018)](https://ieeexplore.ieee.org/document/8462665) who proposed the Generalised End-to-End loss as a suitable function for the purpose of contrastive learning.
 
 Extra features include:
 
