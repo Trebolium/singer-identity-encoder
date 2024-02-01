@@ -9,10 +9,12 @@ nohup_logs/
 sorted_runs/
 default_trained/
 voice_embs_visuals_metadata/
-example_feats/
+damp_example_feats/
+sie_models/
 *pycache__/
 *.pyc
 *.sw*
 *.log
 *.pkl
 eval_study3_stimuli_VIE_conversions.py
+
