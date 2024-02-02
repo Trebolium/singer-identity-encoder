@@ -2,7 +2,8 @@ import os
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 this_script_dir = os.path.dirname(os.path.abspath(__file__))
-SIE_ckpt_path = os.path.join(this_script_dir, 'sie_models/default_model')
+# SIE_ckpt_path = os.path.join(this_script_dir, 'sie_models/default_model')
+SIE_ckpt_path = '/homes/bdoc3/my_data/autovc_models/singer-identity-encoder/bestPerformingSIE_mel80'
 ds_dir_path = os.path.join(this_script_dir, 'damp_example_feats')
 super_dir = os.path.dirname(this_script_dir)
 use_aper_feats = False
